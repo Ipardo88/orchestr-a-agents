@@ -169,9 +169,9 @@ export class SupabaseClient {
         limit: '15',
       }),
       // Capabilities — critical first
-      this.get<{ name: string; is_critical: boolean; category: string | null }>('capabilities', {
+      this.get<{ name: string; is_critical: boolean; description: string | null }>('capabilities', {
         org_id: `eq.${orgId}`,
-        select: 'name,is_critical,category',
+        select: 'name,is_critical,description',
         order: 'is_critical.desc,name.asc',
         limit: '15',
       }),

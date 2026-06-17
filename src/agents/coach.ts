@@ -1,35 +1,110 @@
 import { SupabaseClient } from '../tools/supabase';
 import { callOpenAIText } from '../tools/openai';
-import type { Env, ChatRequest, ChatResponse, CompanyContext } from '../types';
+import type { Env, ChatRequest, ChatResponse, CompanyContext, ChatMessage } from '../types';
+import { runStrategyFoundationAgent } from './strategyFoundationAgent';
+import { runBusinessModelAgent } from './businessModelAgent';
 
-// ── Block ID → human label ────────────────────────────────────────────────────
+// ── Block ID → label ──────────────────────────────────────────────────────────
 
 const BLOCK_LABELS: Record<string, string> = {
-  partners: 'Key Partners',
-  activities: 'Key Activities',
-  resources: 'Key Resources',
-  capabilities: 'Capabilities',
-  value: 'Value Proposition',
-  relationships: 'Customer Relationships',
-  channels: 'Channels',
-  segments: 'Customer Segments',
-  profit: 'Profit Formula',
-  cost: 'Cost Structure',
-  revenue: 'Revenue Streams',
+  partners: 'Key Partners', activities: 'Key Activities', resources: 'Key Resources',
+  capabilities: 'Capabilities', value: 'Value Proposition', relationships: 'Customer Relationships',
+  channels: 'Channels', segments: 'Customer Segments',
+  profit: 'Profit Formula', cost: 'Cost Structure', revenue: 'Revenue Streams',
 };
 
-// ── System prompt ─────────────────────────────────────────────────────────────
-// Best practice: data first (top), then instructions (bottom).
-// XML tags separate content types so the model parses them unambiguously.
+// ── Domain completeness assessment ────────────────────────────────────────────
+// The Supervisor reads what exists in the DB and infers what's missing.
+// No phase state table — completeness is derived from data.
 
-function buildSystemPrompt(ctx: CompanyContext): string {
+type Level = 'empty' | 'partial' | 'complete';
+
+interface DomainStatus {
+  strategyFoundation: Level;
+  businessModel: Level;
+  strategicChoices: Level;
+  bos: 'empty' | 'active';
+  financial: 'empty' | 'partial';
+}
+
+function assessDomains(ctx: CompanyContext): DomainStatus {
+  const hasMissionOrVision = !!(ctx.mission || ctx.vision || ctx.long_term_ambition);
+  const hasGoals = ctx.strategic_goals.length >= 3;
+
+  const hasBmc = !!(ctx.business_model_canvas && Object.keys(ctx.business_model_canvas).length > 0);
+  const hasAssessment = ctx.bm_assessment != null && Object.keys(ctx.bm_assessment).length > 0;
+
+  const hasPtw = !!(ctx.strategy?.winning_aspiration);
+  const hasPtwFull = !!(ctx.strategy?.winning_aspiration && ctx.strategy?.how_to_win);
+
+  return {
+    strategyFoundation: !hasMissionOrVision && ctx.strategic_goals.length === 0
+      ? 'empty'
+      : !hasGoals ? 'partial' : 'complete',
+    businessModel: !hasBmc ? 'empty' : !hasAssessment ? 'partial' : 'complete',
+    strategicChoices: !hasPtw ? 'empty' : !hasPtwFull ? 'partial' : 'complete',
+    bos: (ctx.objectives.length > 0 || ctx.kpis.length > 0) ? 'active' : 'empty',
+    financial: ctx.value_creation_targets.length > 0 ? 'partial' : 'empty',
+  };
+}
+
+// ── Agent routing ─────────────────────────────────────────────────────────────
+// Decides which specialist agent handles the current turn.
+// Priority: (1) explicit user intent, (2) sticky routing from recent messages,
+// (3) domain-completeness gap (what's most needed).
+
+type AgentRoute = 'supervisor' | 'strategy-foundation' | 'business-model';
+
+function detectRoute(
+  message: string,
+  history: ChatMessage[],
+  domains: DomainStatus,
+): AgentRoute {
+  const msg = message.toLowerCase();
+
+  // Recent messages (last 4) for sticky routing
+  const recent = history
+    .slice(-4)
+    .map(m => (m.content ?? '').toLowerCase())
+    .join(' ');
+
+  // 1. Explicit intent in the current message
+  if (/path\s*b|strategy\s*foundation|our\s*purpose|our\s*vision|strategic\s*goal/i.test(msg)) {
+    return 'strategy-foundation';
+  }
+  if (/business\s*model|canvas\b|bmc\b|value\s*prop|customer\s*segment|pestel|swot|where\s*to\s*play|how\s*to\s*win|strategic\s*choice/i.test(msg)) {
+    return 'business-model';
+  }
+
+  // 2. Sticky routing — continue what we were discussing
+  if (/\bpurpose\b|\bvision\b|why.*exist|strategic\s*goal|mission\s*statement/i.test(recent)) {
+    return 'strategy-foundation';
+  }
+  if (/business\s*model|canvas\b|value\s*prop|customer\s*segment|pestel|where\s*to\s*play|how\s*to\s*win/i.test(recent)) {
+    return 'business-model';
+  }
+
+  // 3. Domain-completeness routing (only after at least 2 back-and-forth exchanges)
+  if (history.length >= 4) {
+    if (domains.strategyFoundation !== 'complete') return 'strategy-foundation';
+    if (domains.businessModel !== 'complete') return 'business-model';
+  }
+
+  return 'supervisor';
+}
+
+// ── System prompt ─────────────────────────────────────────────────────────────
+// Structure: company data (top) → supervisor role → domain assessment → guidance rules (bottom)
+// Best practice: long context data before instructions.
+
+function buildSystemPrompt(ctx: CompanyContext, historyLength: number): string {
+  const domains = assessDomains(ctx);
   const lines: string[] = [];
 
-  // ── 1. Company data (top — per "put longform data before instructions") ──────
+  // ── 1. Company data (top) ─────────────────────────────────────────────────
 
   lines.push('<company_context>');
 
-  // Identity
   lines.push('<company_profile>');
   lines.push(`Name: ${ctx.name}`);
   if (ctx.industry)            lines.push(`Industry: ${ctx.industry}`);
@@ -44,7 +119,6 @@ function buildSystemPrompt(ctx: CompanyContext): string {
   if (ctx.gains.length)        lines.push(`Strategic priorities: ${ctx.gains.join('; ')}`);
   lines.push('</company_profile>');
 
-  // Strategy Foundation
   lines.push('<strategy_foundation>');
   if (ctx.strategic_goals.length) {
     lines.push('Strategic Goals:');
@@ -52,7 +126,7 @@ function buildSystemPrompt(ctx: CompanyContext): string {
       lines.push(`  [${g.category}] ${g.goal}${g.timeframe ? ` — ${g.timeframe}` : ''}`)
     );
   } else {
-    lines.push('Strategic Goals: not yet defined.');
+    lines.push('Strategic Goals: none defined yet.');
   }
   if (ctx.value_creation_targets.length) {
     lines.push('Value Creation Targets:');
@@ -63,23 +137,21 @@ function buildSystemPrompt(ctx: CompanyContext): string {
   }
   lines.push('</strategy_foundation>');
 
-  // Business Strategy — Playing to Win
   lines.push('<business_strategy>');
   if (ctx.strategy) {
     const s = ctx.strategy;
-    if (s.winning_aspiration)          lines.push(`Winning Aspiration: ${s.winning_aspiration}`);
-    if (s.where_to_play)               lines.push(`Where to Play: ${s.where_to_play}`);
-    if (s.where_not_to_play)           lines.push(`Where NOT to Play: ${s.where_not_to_play}`);
-    if (s.how_to_win)                  lines.push(`How to Win: ${s.how_to_win}`);
-    if (s.competitive_advantage)       lines.push(`Competitive Advantage: ${s.competitive_advantage}`);
+    if (s.winning_aspiration)            lines.push(`Winning Aspiration: ${s.winning_aspiration}`);
+    if (s.where_to_play)                 lines.push(`Where to Play: ${s.where_to_play}`);
+    if (s.where_not_to_play)             lines.push(`Where NOT to Play: ${s.where_not_to_play}`);
+    if (s.how_to_win)                    lines.push(`How to Win: ${s.how_to_win}`);
+    if (s.competitive_advantage)         lines.push(`Competitive Advantage: ${s.competitive_advantage}`);
     if (s.must_have_capabilities.length) lines.push(`Must-Have Capabilities: ${s.must_have_capabilities.join(', ')}`);
-    if (s.management_systems.length)   lines.push(`Management Systems: ${s.management_systems.join(', ')}`);
+    if (s.management_systems.length)     lines.push(`Management Systems: ${s.management_systems.join(', ')}`);
   } else {
     lines.push('Playing to Win strategy: not yet defined.');
   }
   lines.push('</business_strategy>');
 
-  // Business Model Canvas
   lines.push('<business_model_canvas>');
   if (ctx.business_model_canvas && Object.keys(ctx.business_model_canvas).length > 0) {
     for (const [blockId, text] of Object.entries(ctx.business_model_canvas)) {
@@ -90,7 +162,6 @@ function buildSystemPrompt(ctx: CompanyContext): string {
   }
   lines.push('</business_model_canvas>');
 
-  // BM Assessment
   if (ctx.bm_assessment && Object.keys(ctx.bm_assessment).length > 0) {
     lines.push('<bm_assessment>');
     for (const [blockId, data] of Object.entries(ctx.bm_assessment)) {
@@ -102,26 +173,21 @@ function buildSystemPrompt(ctx: CompanyContext): string {
     lines.push('</bm_assessment>');
   }
 
-  // Business Operating System
   lines.push('<business_operating_system>');
-
   if (ctx.objectives.length) {
     const atRisk  = ctx.objectives.filter(o => o.status === 'at_risk' || o.status === 'behind');
     const onTrack = ctx.objectives.filter(o => o.status === 'on_track');
     lines.push(`Active OKRs: ${ctx.objectives.length} total`);
     if (atRisk.length) {
-      lines.push('Needing attention:');
+      lines.push('At risk / behind:');
       atRisk.forEach(o =>
         lines.push(`  [${o.level.toUpperCase()}] "${o.title}" — ${o.status} at ${Math.round(o.progress)}%`)
       );
     }
-    if (onTrack.length) {
-      lines.push(`On track: ${onTrack.map(o => `"${o.title}"`).join(', ')}`);
-    }
+    if (onTrack.length) lines.push(`On track: ${onTrack.map(o => `"${o.title}"`).join(', ')}`);
   } else {
     lines.push('OKRs: not yet defined.');
   }
-
   if (ctx.kpis.length) {
     const alerts = ctx.kpis.filter(k => {
       if (k.current_value == null) return false;
@@ -132,131 +198,153 @@ function buildSystemPrompt(ctx: CompanyContext): string {
           (k.threshold_amber != null && k.current_value >= k.threshold_amber);
     });
     if (alerts.length) {
-      lines.push('KPI Alerts:');
-      alerts.forEach(k =>
-        lines.push(`  ${k.name}: ${k.current_value}${k.unit ?? ''} vs target ${k.target_value}${k.unit ?? ''}`)
-      );
+      lines.push('KPI alerts:');
+      alerts.forEach(k => lines.push(`  ${k.name}: ${k.current_value}${k.unit ?? ''} vs target ${k.target_value}${k.unit ?? ''}`));
     } else {
       lines.push(`KPIs: ${ctx.kpis.length} configured, no active alerts.`);
     }
   } else {
     lines.push('KPIs: not yet configured.');
   }
-
   if (ctx.capabilities.length) {
-    const critical = ctx.capabilities.filter(c => c.is_critical);
-    const others   = ctx.capabilities.filter(c => !c.is_critical);
-    if (critical.length) lines.push(`Critical Capabilities: ${critical.map(c => c.name).join(', ')}`);
-    if (others.length)   lines.push(`Other Capabilities: ${others.map(c => c.name).join(', ')}`);
+    const critical = ctx.capabilities.filter(c => c.is_critical).map(c => c.name);
+    const others   = ctx.capabilities.filter(c => !c.is_critical).map(c => c.name);
+    if (critical.length) lines.push(`Critical Capabilities: ${critical.join(', ')}`);
+    if (others.length)   lines.push(`Supporting Capabilities: ${others.join(', ')}`);
   } else {
     lines.push('Capabilities: not yet mapped.');
   }
-
   lines.push('</business_operating_system>');
-
-  // Platform module map — helps coach direct users to the right page
-  lines.push('<platform_modules>');
-  lines.push('1. My Workspace — KPI cards, OKR snapshot, intelligence feed, team overview');
-  lines.push('2. Strategy Foundation — Purpose, vision, long-term ambition, strategic goals, value creation targets');
-  lines.push('3. Business Strategy — Business model canvas, assessment, external environment, functional strategies');
-  lines.push('4. Business Operating System — Engines, OKRs, KPIs, capabilities, playbooks, org chart, skills matrix');
-  lines.push('5. Corporate Strategy — Portfolio, capital allocation, parenting advantage, financial strategy, risk (multi-BU)');
-  lines.push('6. Financial Intelligence — Revenue, margins, cash flow, budget, forecast, valuation, ROIC');
-  lines.push('</platform_modules>');
 
   lines.push('</company_context>');
 
-  // ── 2. Role + behavioral instructions (bottom — after data) ──────────────────
-  // Best practice: explain WHY each constraint exists so the model generalizes it.
+  // ── 2. Supervisor role + domain assessment + guidance (bottom) ────────────
 
   lines.push(`
-<instructions>
-You are OrchestrA, an AI strategy co-pilot embedded in the OrchestrA Strategy platform.
-Your role is to guide business owners and leadership teams from strategic thinking to measurable value creation.
+<supervisor_role>
+You are OrchestrA — an AI strategy advisor and execution co-pilot. You are the Supervisor in a multi-agent system. You accompany the user through a continuous cycle: strategy formulation → execution → performance monitoring → action. This is not a one-time exercise. The platform enables constant evaluation, iteration, and improvement.
 
+Your job as Supervisor:
+- Read what exists in the company data above to understand where the user is in their journey
+- Identify what is missing or incomplete across strategic domains
+- Guide the user to the most impactful next step, in the right strategic order
+- Ask the right questions to help the user develop their thinking — do not generate strategy for them
+- Route to specialist agents (Business Model Analyst, BOS Agent, Financial Agent, etc.) when the user needs deep work in a specific domain
+</supervisor_role>
+
+<domain_status>
+Strategy Foundation (mission, vision, strategic goals): ${domains.strategyFoundation}
+Business Model Canvas + Assessment: ${domains.businessModel}
+Strategic Choices (Playing to Win — where to play / how to win): ${domains.strategicChoices}
+Business Operating System (OKRs / KPIs / capabilities): ${domains.bos}
+Financial Intelligence (value targets, financial data): ${domains.financial}
+</domain_status>
+
+<guidance_priority>
+Use domain_status to prioritize. The strategic logic is sequential — each layer builds on the one before:
+
+1. STRATEGY FOUNDATION first. If empty or partial: this is the priority. Without clear purpose, vision, and goals, everything else is noise. Guide the user to the Strategy Foundation module.
+
+2. BUSINESS MODEL second. If foundation is complete but BMC is empty or partial: guide to Business Strategy → Business Model Studio. Map the canvas, assess each building block, analyze the external environment (PESTEL), then define strategic choices (where to play / how to win).
+
+3. STRATEGIC CHOICES third. If BMC is mapped but Playing to Win is empty: guide to Strategy Lab.
+
+4. BUSINESS OPERATING SYSTEM fourth. Only introduce OKRs, KPIs, and capabilities AFTER the strategy foundation and business model are at least partially defined. If BOS is active but strategy is empty, the OKRs may not be aligned — flag this gap rather than celebrating the OKRs.
+
+5. FINANCIAL INTELLIGENCE is valuable at any stage but requires data connection. Surface it when relevant, not as the starting point.
+
+Important: If the user raises any topic, answer it. Then guide them back to the highest-priority incomplete domain.
+</guidance_priority>
+${historyLength === 1 ? `
+<current_instruction>
+THIS IS PHASE 1, MESSAGE 2. You MUST generate a complete platform orientation. Do not skip any section.
+
+Write this in order, covering ALL 4 sections below:
+
+SECTION 1 — What OrchestrA is (1 short paragraph):
+OrchestrA Strategy is an AI-powered strategy-to-execution platform. It replaces fragmented tools, disconnected spreadsheets, and expensive consultants with one connected workspace. Based on their onboarding inputs, the workspace has been shaped around their company profile, priorities, and challenges.
+
+SECTION 2 — The 6 platform modules (introduce each one clearly):
+"Here is how the platform is organized:"
+1. My Workspace — home base: strategy workplan, recommended next steps, KPI cards, OKR snapshot, open tasks, team overview.
+2. Strategy Foundation — purpose, vision, long-term ambition, strategic goals, value creation targets. The foundation everything else builds on.
+3. Business Strategy — business model canvas, SWOT assessment per building block, external environment (PESTEL), strategic choices (where to play / how to win / capabilities).
+4. Strategy Execution / Business OS — value engines, OKRs, KPIs, capabilities, playbooks, org chart, skills matrix. Where strategy becomes daily action.
+5. Corporate Strategy — portfolio, capital allocation, risk exposure, financial strategy. Especially relevant for multi-business firms.
+6. Financial Intelligence — revenue, margins, cash flow, budgets, forecasts, valuation, ROIC. Connects strategy to financial outcomes.
+
+SECTION 3 — Your role (1 sentence):
+OrchestrA guides the user through each area — asking the right questions, analyzing inputs, and connecting strategic decisions to execution and financial outcomes.
+
+SECTION 4 — Two starting paths + closing question:
+"To get the most value from the platform, I recommend starting with one of two paths:"
+Path A: Connect business data (QuickBooks, Xero, NetSuite, Sage Intacct, SAP, Microsoft Dynamics, Rippling, BambooHR) — unlocks Financial Intelligence with real company data.
+Path B: Start with Strategy Foundation — define or confirm purpose, vision, and strategic goals. The foundation for all platform work.
+End with: "Which path would you like to start with?"
+
+IMPORTANT: Do not skip sections. Do not jump straight to the paths. Cover all 4 sections.
+</current_instruction>
+` : ''}
 <response_format>
-Write responses as flowing prose paragraphs — 2 to 4 short paragraphs maximum unless the user explicitly asks for more detail.
-Do not start with preambles like "Based on your context..." or "As OrchestrA...". Begin with your first substantive sentence.
-Reserve lists only for genuinely enumerable items (e.g., 3+ steps in a process). Prose reads better in a chat interface.
-</response_format>
-
-<grounding_rules>
-Always reference the company's actual data from <company_context> above. Generic advice wastes the user's time.
-When data is missing (e.g., strategy not yet defined), acknowledge the gap clearly and guide the user to the specific platform module that fills it.
-Quote pains, goals, or OKR titles verbatim when referencing them — paraphrasing introduces drift.
-One clear recommended next step per response. Guide one step at a time.
-</grounding_rules>
-</instructions>`);
+Flowing prose paragraphs. 2–4 short paragraphs unless the user asks for more detail.
+Begin with your first substantive sentence — no preambles like "Based on your context..." or "Great question!".
+Reserve bullet lists for genuinely enumerable items (module lists, step sequences). One clear recommended next step per response.
+</response_format>`);
 
   return lines.join('\n');
 }
 
-// ── Welcome prompt ────────────────────────────────────────────────────────────
-// Uses XML RULES + CONTENT pattern: rules explain WHY (model generalizes from explanations),
-// content provides the specific data to embed verbatim.
+// ── Phase 1 Message 1 — welcome ───────────────────────────────────────────────
+// Follows PROGRAMINTROSKILL.md Phase 1 arc strictly.
+// Rule: do NOT enumerate specific onboarding signals. Acknowledge workspace is ready.
+// Rule: end with "Are you ready to begin?" — no strategy content yet.
 
 function buildWelcomePrompt(ctx: CompanyContext, userName: string | null): string {
   const firstName = userName ? userName.split(' ')[0] : 'there';
 
-  const progressParts: string[] = [];
-  if (ctx.strategy?.winning_aspiration || ctx.strategic_goals.length > 0)
-    progressParts.push('strategic direction is defined');
-  if (ctx.business_model_canvas)
-    progressParts.push('business model is mapped');
-  if (ctx.objectives.length > 0 || ctx.kpis.length > 0)
-    progressParts.push('execution system is configured');
-
-  const progressNote = progressParts.length
-    ? `Progress already made: ${progressParts.join(', ')}.`
-    : `The workspace is freshly set up — no data has been entered yet.`;
-
-  const pains = ctx.pains.slice(0, 3).map(p => `"${p}"`).join(', ');
-  const gains = ctx.gains.slice(0, 3).map(g => `"${g}"`).join(', ');
-
-  return `Generate a welcome message for ${firstName} at ${ctx.name}.
+  return `Generate Phase 1 Message 1 of the OrchestrA welcome for ${firstName} at ${ctx.name}.
 
 <rules>
-<rule id="opening">
-The very first sentence must be exactly: "Welcome to OrchestrA Strategy, ${firstName}."
-Reason: this is the platform's branded greeting and must be consistent for all users.
-</rule>
+<rule id="opening">First line: "Hi ${firstName}," — new paragraph — "Welcome to OrchestrA Strategy."</rule>
+<rule id="no_data_enumeration">Do NOT mention specific company data (goals, challenges, OKRs, KPIs, financial figures). Only acknowledge that onboarding inputs were processed and the workspace is ready. Reason: enumerating data in the first message feels presumptuous before trust is established.</rule>
+<rule id="platform_frame">One sentence: OrchestrA is an AI-powered strategy-to-execution platform. Co-pilot role. Mention data integration capability (QuickBooks, Xero, NetSuite, etc.) briefly.</rule>
+<rule id="closing">End with exactly: "Are you ready to begin?" Do not add paths, modules, or analysis. Reason: this is the structural first message — the user must reply before Message 2.</rule>
+<rule id="length">5–8 sentences. Warm, direct, no flattery. No bullet lists.</rule>
+</rules>`;
+}
 
-<rule id="tone">
-Be warm, direct, and specific. Avoid flattery phrases such as "I'm excited to work with you", "I commend you for", or "let's embark on a journey".
-Reason: hollow openers erode trust and waste the user's reading time.
-</rule>
+// ── Phase 1 Message 2 — platform orientation (scripted, no AI needed) ─────────
+// Per PROGRAMINTROSKILL.md: "match the canonical example exactly".
+// Content is identical for all users — only the opening adapts slightly.
 
-<rule id="verbatim_data">
-When referencing challenges or strategic priorities, quote them word-for-word from the data below.
-Reason: paraphrasing introduces drift from what the user actually entered; verbatim quotes show the system has real context.
-</rule>
+function buildPlatformOrientation(): string {
+  return `OrchestrA Strategy is an AI-powered strategy-to-execution platform designed to help business owners and leadership teams move from strategic thinking to measurable value creation.
 
-<rule id="format">
-Write in flowing prose — 3 to 4 short paragraphs. End with exactly one question.
-Reason: the chat interface favors conversational prose over bullet lists.
-</rule>
+Instead of working across fragmented tools, spreadsheets, dashboards, documents, and consultants, OrchestrA gives you one connected workspace to define your strategic direction, map and improve your business model, design your business operating system, align goals and teams to financial outcomes, and monitor execution in real time.
 
-<rule id="no_preamble">
-Begin the message directly with "Welcome to OrchestrA Strategy, ${firstName}." — no meta-commentary.
-</rule>
-</rules>
+Here is how the platform is organized:
 
-<content>
-Paragraph 1 — Opening:
-"Welcome to OrchestrA Strategy, ${firstName}." Then one sentence: OrchestrA is an AI-powered strategy-to-execution platform that connects your strategic intent to daily execution in one workspace, replacing fragmented tools and expensive consulting engagements.
+**1. My Workspace** — Your home base. Strategy workplan, recommended next steps, KPI cards, OKR snapshot, open tasks, and team overview.
 
-Paragraph 2 — Company snapshot:
-${ctx.name} is a${ctx.stage ? ` ${ctx.stage}` : ''} ${ctx.business_model_type ?? 'company'} in ${ctx.industry ?? 'their industry'}. ${progressNote}
+**2. Strategy Foundation** — Where we define the foundation of your company: purpose, vision, long-term ambition, strategic goals, and value creation targets. Everything else builds on this.
 
-Paragraph 3 — Context from what they've shared:
-${pains ? `The challenges they've flagged are: ${pains}.` : ''}
-${gains ? `Their stated strategic priorities are: ${gains}.` : ''}
-${!pains && !gains ? 'They have not yet shared their challenges or priorities — acknowledge this and suggest visiting Strategy Foundation first to ground everything in their actual context.' : ''}
+**3. Business Strategy** — Where we analyze how your business competes and grows. Business model canvas, assessment of each building block, external environment (PESTEL), and strategic choices — where to play, how to win, capabilities, and trade-offs.
 
-Paragraph 4 — Two starting paths (ask which they prefer):
-Path A — Connect financial or operational data (accounting software, CRM, ERP) to activate the Financial Intelligence module and let the platform surface performance insights immediately.
-Path B — Start with Strategy Foundation to define or refine purpose, vision, long-term ambition, and strategic goals — the foundation everything else builds on.
-</content>`;
+**4. Strategy Execution / Business OS** — Where strategy becomes action. Value engines, OKRs, KPIs, capabilities, playbooks, org chart, and skills matrix — your operating system for growth and execution.
+
+**5. Corporate Strategy** — Portfolio and value creation perspective: business unit analysis, capital allocation, risk exposure, corporate advantage, and financial strategy. Most relevant for multi-business firms and holding companies.
+
+**6. Financial Intelligence** — Where we connect strategy to numbers. Revenue, margins, cash flow, budgets, forecasts, ROIC, and valuation — powered by your actual financial data.
+
+My role is to guide you through each area, ask the right questions, analyze your inputs, and help you connect strategic decisions to execution and financial outcomes.
+
+To get the most value from the platform, I recommend starting with one of two paths:
+
+**Path A: Connect your business data.** This allows me to analyze your financial performance, KPIs, trends, risks, and opportunities using real company numbers. We can connect QuickBooks, Xero, NetSuite, Sage Intacct, SAP, Microsoft Dynamics, Rippling, BambooHR, and others.
+
+**Path B: Start with your Strategy Foundation.** This allows us to confirm why your company exists, where it is headed, what success looks like, and which strategic goals should guide everything else. Once the foundation is clear, business strategy, execution, and financial analytics follow with much more focus.
+
+Which path would you like to start with?`;
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
@@ -264,57 +352,90 @@ Path B — Start with Strategy Foundation to define or refine purpose, vision, l
 export async function runCoachAgent(req: ChatRequest, env: Env): Promise<ChatResponse> {
   const db = new SupabaseClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
-  // 1. Load full company context (all platform data in one shot)
+  // 1. Load full company context
   const ctx = await db.getCompanyContext(req.org_id);
   if (!ctx) throw new Error(`Org ${req.org_id} not found`);
 
-  // 2. Resolve conversation (use existing or create new)
+  // 2. Resolve or create conversation
   const conversationId = req.conversation_id
     ?? await db.getOrCreateConversation(req.org_id, req.user_id);
 
-  // 3. Load message history for continuity
+  // 3. Load history — length drives phase detection
   const history = await db.getConversationHistory(conversationId);
 
-  // 4. Build grounded system prompt from full context
-  const systemPrompt = buildSystemPrompt(ctx);
+  // ── Phase routing ──────────────────────────────────────────────────────────
 
-  // 5. Determine the user turn content
+  // Phase 1 Message 1: empty message + no history → scripted welcome
   const isWelcome = !req.message.trim() && history.length === 0;
-  const userPrompt = isWelcome
-    ? buildWelcomePrompt(ctx, req.user_name ?? null)
-    : req.message.trim();
 
-  if (!userPrompt) throw new Error('Empty message with existing conversation history');
+  // Phase 1 Message 2: user replied to welcome (history has exactly 1 assistant message)
+  // Content is fully scripted — no AI call needed, always consistent
+  const isPlatformOrientation = history.length === 1 && !!req.message.trim();
 
-  // 6. Compose the full message array
-  // Best practice: system prompt carries grounded context; history provides conversation continuity
-  const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-    { role: 'system', content: systemPrompt },
-    ...history
-      .filter(m => m.role !== 'tool' && m.content)
-      .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content as string })),
-    { role: 'user', content: userPrompt },
-  ];
-
-  // 7. Call Azure OpenAI — plain prose, no JSON mode
-  const { content: assistantContent } = await callOpenAIText(
-    {
-      endpoint: env.AZURE_OPENAI_ENDPOINT,
-      apiKey: env.AZURE_OPENAI_API_KEY,
-      deployment: env.AZURE_OPENAI_DEPLOYMENT,
-      apiVersion: env.AZURE_OPENAI_API_VERSION,
-    },
-    messages,
-    900,
-  );
-
-  if (!assistantContent) throw new Error('Empty response from AI');
-
-  // 8. Persist conversation (skip storing the meta welcome-prompt; store user's real messages only)
-  if (!isWelcome) {
+  if (isPlatformOrientation) {
+    const content = buildPlatformOrientation();
     await db.addMessage(conversationId, 'user', req.message.trim());
+    await db.addMessage(conversationId, 'assistant', content);
+    return { conversation_id: conversationId, content, role: 'assistant' };
   }
-  await db.addMessage(conversationId, 'assistant', assistantContent);
+
+  // All other turns — route to specialist agent or supervisor
+  const domains = assessDomains(ctx);
+  let assistantContent: string;
+
+  if (isWelcome) {
+    // Phase 1 Message 1: AI-generated personalised welcome
+    const systemPrompt = buildSystemPrompt(ctx, history.length);
+    const userPrompt   = buildWelcomePrompt(ctx, req.user_name ?? null);
+    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user',   content: userPrompt },
+    ];
+    const result = await callOpenAIText(
+      { endpoint: env.AZURE_OPENAI_ENDPOINT, apiKey: env.AZURE_OPENAI_API_KEY,
+        deployment: env.AZURE_OPENAI_DEPLOYMENT, apiVersion: env.AZURE_OPENAI_API_VERSION },
+      messages, 600,
+    );
+    assistantContent = result.content;
+    if (!assistantContent) throw new Error('Empty response from AI');
+    await db.addMessage(conversationId, 'assistant', assistantContent);
+  } else {
+    // Normal turns — detect which agent should handle this
+    const userMessage = req.message.trim();
+    if (!userMessage) throw new Error('Empty message with existing conversation history');
+
+    const route = detectRoute(userMessage, history, domains);
+
+    switch (route) {
+      case 'strategy-foundation':
+        assistantContent = await runStrategyFoundationAgent(ctx, history, userMessage, env);
+        break;
+      case 'business-model':
+        assistantContent = await runBusinessModelAgent(ctx, history, userMessage, env);
+        break;
+      default: {
+        // Supervisor handles general guidance, cross-domain questions, navigation
+        const systemPrompt = buildSystemPrompt(ctx, history.length);
+        const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+          { role: 'system', content: systemPrompt },
+          ...history
+            .filter(m => m.role !== 'tool' && m.content)
+            .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content as string })),
+          { role: 'user', content: userMessage },
+        ];
+        const result = await callOpenAIText(
+          { endpoint: env.AZURE_OPENAI_ENDPOINT, apiKey: env.AZURE_OPENAI_API_KEY,
+            deployment: env.AZURE_OPENAI_DEPLOYMENT, apiVersion: env.AZURE_OPENAI_API_VERSION },
+          messages, 900,
+        );
+        assistantContent = result.content;
+      }
+    }
+
+    if (!assistantContent) throw new Error('Empty response from AI');
+    await db.addMessage(conversationId, 'user', userMessage);
+    await db.addMessage(conversationId, 'assistant', assistantContent);
+  }
 
   return { conversation_id: conversationId, content: assistantContent, role: 'assistant' };
 }

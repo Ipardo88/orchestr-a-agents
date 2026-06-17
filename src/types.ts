@@ -60,6 +60,7 @@ export interface Capability {
   id: string;
   name: string;
   is_critical: boolean;
+  description: string | null;
 }
 
 export interface EmployeeCapability {
@@ -169,7 +170,7 @@ export interface CompanyContext {
   }>;
 
   // BOS: Capabilities
-  capabilities: Array<{ name: string; is_critical: boolean; category: string | null }>;
+  capabilities: Array<{ name: string; is_critical: boolean; description: string | null }>;
 }
 
 export interface ChatMessage {
