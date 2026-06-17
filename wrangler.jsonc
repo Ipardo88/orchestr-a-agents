@@ -1,0 +1,26 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "orchestr-a-agents",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Cron triggers — require Workers Paid plan to fire automatically.
+  // For local dev: wrangler dev --test-scheduled, then POST http://localhost:8787/__scheduled
+  "triggers": {
+    "crons": [
+      "0 9 * * 1",   // Strategy Health Agent — every Monday 9am UTC
+      "0 8 * * *"    // Performance Watchdog  — every day 8am UTC
+    ]
+  },
+
+  // KV for agent memory (deduplication, last-run state)
+  // Run: wrangler kv namespace create AGENT_MEMORY  → paste the id below
+  "kv_namespaces": [
+    { "binding": "AGENT_MEMORY", "id": "cf62243cfa4b4f049e78c166e7f98e84" }
+  ],
+
+  "observability": {
+    "enabled": true
+  }
+}
