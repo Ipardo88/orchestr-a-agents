@@ -379,6 +379,17 @@ export async function runCoachAgent(req: ChatRequest, env: Env): Promise<ChatRes
     return { conversation_id: conversationId, content, role: 'assistant' };
   }
 
+  // Resume mode: empty message sent by the chat panel when it opens with an existing conversation.
+  // Return the last assistant message without adding to history or calling the AI.
+  if (!req.message.trim() && history.length > 0) {
+    const lastAssistant = [...history].reverse().find(m => m.role === 'assistant');
+    return {
+      conversation_id: conversationId,
+      content: lastAssistant?.content ?? 'Welcome back. How can I help you continue?',
+      role: 'assistant',
+    };
+  }
+
   // All other turns — route to specialist agent or supervisor
   const domains = assessDomains(ctx);
   let assistantContent: string;

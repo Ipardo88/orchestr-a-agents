@@ -108,6 +108,28 @@ export default {
       );
     }
 
+    // Conversation history: GET /history?org_id=X&user_id=Y
+    // Used by the chat panel on open to load existing messages before triggering welcome.
+    if (request.method === 'GET' && url.pathname === '/history') {
+      const orgId  = url.searchParams.get('org_id');
+      const userId = url.searchParams.get('user_id');
+      if (!orgId || !userId) {
+        return Response.json({ error: 'org_id and user_id are required' }, { status: 400, headers: CORS });
+      }
+      try {
+        const db = new SupabaseClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+        const conversationId = await db.getOrCreateConversation(orgId, userId);
+        const history = await db.getConversationHistory(conversationId);
+        const messages = history
+          .filter(m => m.role !== 'tool' && m.content)
+          .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content as string }));
+        return Response.json({ conversation_id: conversationId, messages }, { headers: CORS });
+      } catch (err) {
+        console.error('[history]', err);
+        return Response.json({ error: 'Failed to load history' }, { status: 500, headers: CORS });
+      }
+    }
+
     // AI Coach: POST /chat  body: ChatRequest
     if (request.method === 'POST' && url.pathname === '/chat') {
       const body = await request.json<ChatRequest>();
