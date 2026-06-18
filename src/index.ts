@@ -1,5 +1,5 @@
 import { runStrategyHealthAgent } from './agents/strategy-health';
-import { runCoachAgent } from './agents/coach';
+import { runCoachAgent, runAgentContinue } from './agents/coach';
 import { SupabaseClient } from './tools/supabase';
 import type { Env, AgentType, TriggerSource, ChatRequest } from './types';
 
@@ -108,9 +108,8 @@ export default {
       );
     }
 
-    // Conversation history: GET /history?org_id=X&user_id=Y
-    // Used by the chat panel on open to load existing messages before triggering welcome.
-    if (request.method === 'GET' && url.pathname === '/history') {
+    // ── Conversation list: GET /conversations?org_id=X&user_id=Y ────────────
+    if (request.method === 'GET' && url.pathname === '/conversations') {
       const orgId  = url.searchParams.get('org_id');
       const userId = url.searchParams.get('user_id');
       if (!orgId || !userId) {
@@ -118,15 +117,75 @@ export default {
       }
       try {
         const db = new SupabaseClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-        const conversationId = await db.getOrCreateConversation(orgId, userId);
-        const history = await db.getConversationHistory(conversationId);
-        const messages = history
-          .filter(m => m.role !== 'tool' && m.content)
-          .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content as string }));
+        const conversations = await db.listConversations(orgId, userId);
+        return Response.json({ conversations }, { headers: CORS });
+      } catch (err) {
+        console.error('[conversations]', err);
+        return Response.json({ error: 'Failed to list conversations' }, { status: 500, headers: CORS });
+      }
+    }
+
+    // ── New conversation: POST /conversations ────────────────────────────────
+    if (request.method === 'POST' && url.pathname === '/conversations') {
+      const body = await request.json<{ org_id: string; user_id: string }>();
+      if (!body.org_id || !body.user_id) {
+        return Response.json({ error: 'org_id and user_id are required' }, { status: 400, headers: CORS });
+      }
+      try {
+        const db = new SupabaseClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+        const conversationId = await db.createNewConversation(body.org_id, body.user_id);
+        return Response.json({ conversation_id: conversationId }, { headers: CORS });
+      } catch (err) {
+        console.error('[new-conversation]', err);
+        return Response.json({ error: 'Failed to create conversation' }, { status: 500, headers: CORS });
+      }
+    }
+
+    // ── Conversation history with IDs: GET /history?org_id=X&user_id=Y[&conversation_id=Z]
+    // Returns message IDs + timestamps (needed for edit+regenerate).
+    // If no conversation_id, loads or creates the most recent one.
+    if (request.method === 'GET' && url.pathname === '/history') {
+      const orgId          = url.searchParams.get('org_id');
+      const userId         = url.searchParams.get('user_id');
+      const convIdParam    = url.searchParams.get('conversation_id');
+      if (!orgId || !userId) {
+        return Response.json({ error: 'org_id and user_id are required' }, { status: 400, headers: CORS });
+      }
+      try {
+        const db = new SupabaseClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+        const conversationId = convIdParam ?? await db.getOrCreateConversation(orgId, userId);
+        const rows = await db.getConversationHistoryWithIds(conversationId);
+        const messages = rows
+          .filter(r => r.role !== 'tool' && r.content)
+          .map(r => ({ id: r.id, role: r.role as 'user' | 'assistant', content: r.content as string, created_at: r.created_at }));
         return Response.json({ conversation_id: conversationId, messages }, { headers: CORS });
       } catch (err) {
         console.error('[history]', err);
         return Response.json({ error: 'Failed to load history' }, { status: 500, headers: CORS });
+      }
+    }
+
+    // ── Edit message + regenerate: PATCH /messages ────────────────────────────
+    // Updates user message content, deletes subsequent messages, re-runs AI.
+    if (request.method === 'PATCH' && url.pathname === '/messages') {
+      const body = await request.json<{
+        message_id: string;
+        conversation_id: string;
+        created_at: string;
+        new_content: string;
+        org_id: string;
+      }>();
+      if (!body.message_id || !body.conversation_id || !body.new_content || !body.org_id) {
+        return Response.json({ error: 'message_id, conversation_id, created_at, new_content, org_id are required' }, { status: 400, headers: CORS });
+      }
+      try {
+        const db = new SupabaseClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+        await db.editMessageAndTruncate(body.conversation_id, body.message_id, body.created_at, body.new_content);
+        const response = await runAgentContinue(body.conversation_id, body.org_id, env);
+        return Response.json(response, { headers: CORS });
+      } catch (err) {
+        console.error('[edit-message]', err);
+        return Response.json({ error: err instanceof Error ? err.message : 'Edit failed' }, { status: 500, headers: CORS });
       }
     }
 

@@ -285,10 +285,33 @@ End with: "Which path would you like to start with?"
 IMPORTANT: Do not skip sections. Do not jump straight to the paths. Cover all 4 sections.
 </current_instruction>
 ` : ''}
+<active_system>
+OrchestrA is an AI-native operating system — not a passive chatbot. You drive the work; the user responds.
+
+Every response MUST:
+1. Be grounded in this company's actual data (company_context above) — never give generic advice
+2. Proactively surface urgent signals: if an OKR is at risk, a KPI is in the red, or a critical domain is empty, name it explicitly even if the user didn't ask
+3. End with ONE clear directive — the single most important next action
+
+Format the directive as the LAST LINE: **Next:** [specific action in one sentence]
+
+Good directive examples:
+- "**Next:** Tell me what Blue Penguin would lose if it disappeared tomorrow — beyond the revenue."
+- "**Next:** Navigate to Business Strategy → Business Model Studio and let's map the Customer Segments block together."
+- "**Next:** Before we continue — the BP Copilot OKR is at 30% and at risk. Should we address that first or stay on purpose?"
+
+Bad directives (never use):
+- "What do you think?" (too open)
+- "Let me know if you have questions." (passive)
+- "We could do X or Y." (no clear direction)
+
+Never end without a **Next:** line. This is non-negotiable.
+</active_system>
+
 <response_format>
-Flowing prose paragraphs. 2–4 short paragraphs unless the user asks for more detail.
-Begin with your first substantive sentence — no preambles like "Based on your context..." or "Great question!".
-Reserve bullet lists for genuinely enumerable items (module lists, step sequences). One clear recommended next step per response.
+Flowing prose. 2–4 short paragraphs. No preambles ("Great question!", "Based on your context...").
+Bullets only for genuinely enumerable items. Reference the platform by module name when directing the user to act.
+Last line is always: **Next:** [directive]
 </response_format>`);
 
   return lines.join('\n');
@@ -447,6 +470,68 @@ export async function runCoachAgent(req: ChatRequest, env: Env): Promise<ChatRes
     await db.addMessage(conversationId, 'user', userMessage);
     await db.addMessage(conversationId, 'assistant', assistantContent);
   }
+
+  return { conversation_id: conversationId, content: assistantContent, role: 'assistant' };
+}
+
+/**
+ * Re-run the agent from the current state of a conversation.
+ * Used by the edit+regenerate flow: the message has already been updated
+ * in the DB and subsequent messages deleted — this loads the updated history,
+ * calls the right agent, and saves only the new assistant response.
+ */
+export async function runAgentContinue(
+  conversationId: string,
+  orgId: string,
+  env: Env,
+): Promise<ChatResponse> {
+  const db = new SupabaseClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
+  const ctx = await db.getCompanyContext(orgId);
+  if (!ctx) throw new Error(`Org ${orgId} not found`);
+
+  const history = await db.getConversationHistory(conversationId);
+  if (history.length === 0) throw new Error('No messages in conversation');
+
+  // The last message in history should be the (now-edited) user message
+  const lastUserMsg = [...history].reverse().find(m => m.role === 'user');
+  if (!lastUserMsg?.content) throw new Error('No user message to continue from');
+
+  const userMessage = lastUserMsg.content;
+  // History passed to agents excludes the last user message (it's the current turn)
+  const historyForAgent = history.slice(0, -1);
+
+  const domains = assessDomains(ctx);
+  const route = detectRoute(userMessage, historyForAgent, domains);
+
+  let assistantContent: string;
+  switch (route) {
+    case 'strategy-foundation':
+      assistantContent = await runStrategyFoundationAgent(ctx, historyForAgent, userMessage, env);
+      break;
+    case 'business-model':
+      assistantContent = await runBusinessModelAgent(ctx, historyForAgent, userMessage, env);
+      break;
+    default: {
+      const systemPrompt = buildSystemPrompt(ctx, history.length);
+      const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+        { role: 'system', content: systemPrompt },
+        ...historyForAgent
+          .filter(m => m.role !== 'tool' && m.content)
+          .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content as string })),
+        { role: 'user', content: userMessage },
+      ];
+      const result = await callOpenAIText(
+        { endpoint: env.AZURE_OPENAI_ENDPOINT, apiKey: env.AZURE_OPENAI_API_KEY,
+          deployment: env.AZURE_OPENAI_DEPLOYMENT, apiVersion: env.AZURE_OPENAI_API_VERSION },
+        messages, 900,
+      );
+      assistantContent = result.content;
+    }
+  }
+
+  if (!assistantContent) throw new Error('Empty response from AI');
+  await db.addMessage(conversationId, 'assistant', assistantContent);
 
   return { conversation_id: conversationId, content: assistantContent, role: 'assistant' };
 }

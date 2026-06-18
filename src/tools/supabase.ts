@@ -36,6 +36,24 @@ export class SupabaseClient {
     return res.json() as Promise<T>;
   }
 
+  private async patchWhere(table: string, filter: Record<string, string>, body: object): Promise<void> {
+    const url = new URL(`${this.base}/${table}`);
+    for (const [k, v] of Object.entries(filter)) url.searchParams.set(k, v);
+    const res = await fetch(url.toString(), {
+      method: 'PATCH',
+      headers: this.headers,
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`PATCH ${table} → ${res.status}: ${await res.text()}`);
+  }
+
+  private async deleteWhere(table: string, filter: Record<string, string>): Promise<void> {
+    const url = new URL(`${this.base}/${table}`);
+    for (const [k, v] of Object.entries(filter)) url.searchParams.set(k, v);
+    const res = await fetch(url.toString(), { method: 'DELETE', headers: this.headers });
+    if (!res.ok) throw new Error(`DELETE ${table} → ${res.status}: ${await res.text()}`);
+  }
+
   // ── Readers ───────────────────────────────────────────────────────────────
 
   async getActiveOrgs(): Promise<Org[]> {
@@ -365,6 +383,77 @@ export class SupabaseClient {
     content: string | null,
   ): Promise<void> {
     await this.post('agent_messages', { conversation_id: conversationId, role, content });
+  }
+
+  // ── Conversation management ───────────────────────────────────────────────
+
+  /** Always creates a new conversation (used by "New Conversation" action). */
+  async createNewConversation(orgId: string, userId: string): Promise<string> {
+    const rows = await this.post<{ id: string }[]>('agent_conversations', {
+      org_id: orgId,
+      user_id: userId,
+    });
+    return (rows as unknown as { id: string }[])[0].id;
+  }
+
+  /** List all conversations for the history panel, newest first. */
+  async listConversations(orgId: string, userId: string): Promise<Array<{
+    id: string;
+    title: string | null;
+    updated_at: string;
+  }>> {
+    return this.get<{ id: string; title: string | null; updated_at: string }>(
+      'agent_conversations',
+      {
+        org_id: `eq.${orgId}`,
+        user_id: `eq.${userId}`,
+        order: 'updated_at.desc',
+        limit: '30',
+        select: 'id,title,updated_at',
+      },
+    );
+  }
+
+  /** Set the conversation title (auto-generated from first real user message). */
+  async setConversationTitle(conversationId: string, title: string): Promise<void> {
+    await this.patchWhere('agent_conversations', { id: `eq.${conversationId}` }, { title });
+  }
+
+  /** Conversation history including message IDs and timestamps (needed for editing). */
+  async getConversationHistoryWithIds(conversationId: string, limit = 50): Promise<Array<{
+    id: string;
+    role: string;
+    content: string | null;
+    created_at: string;
+  }>> {
+    return this.get<{ id: string; role: string; content: string | null; created_at: string }>(
+      'agent_messages',
+      {
+        conversation_id: `eq.${conversationId}`,
+        order: 'created_at.asc',
+        limit: String(limit),
+        select: 'id,role,content,created_at',
+      },
+    );
+  }
+
+  /**
+   * Edit a user message: update its content and delete all messages that came
+   * after it so the conversation can be re-run from that point.
+   */
+  async editMessageAndTruncate(
+    conversationId: string,
+    messageId: string,
+    messageCreatedAt: string,
+    newContent: string,
+  ): Promise<void> {
+    // Delete messages after this one (assistant response + any subsequent turns)
+    await this.deleteWhere('agent_messages', {
+      conversation_id: `eq.${conversationId}`,
+      created_at: `gt.${messageCreatedAt}`,
+    });
+    // Update the message itself
+    await this.patchWhere('agent_messages', { id: `eq.${messageId}` }, { content: newContent });
   }
 
   // ── Writers ───────────────────────────────────────────────────────────────
