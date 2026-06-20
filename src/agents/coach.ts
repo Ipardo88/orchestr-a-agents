@@ -3,6 +3,7 @@ import { callOpenAIText } from '../tools/openai';
 import type { Env, ChatRequest, ChatResponse, CompanyContext, ChatMessage } from '../types';
 import { runStrategyFoundationAgent } from './strategyFoundationAgent';
 import { runBusinessModelAgent } from './businessModelAgent';
+import { runBosAgent } from './bosAgent';
 
 // ── Block ID → label ──────────────────────────────────────────────────────────
 
@@ -53,7 +54,7 @@ function assessDomains(ctx: CompanyContext): DomainStatus {
 // Priority: (1) explicit user intent, (2) sticky routing from recent messages,
 // (3) domain-completeness gap (what's most needed).
 
-type AgentRoute = 'supervisor' | 'strategy-foundation' | 'business-model';
+type AgentRoute = 'supervisor' | 'strategy-foundation' | 'business-model' | 'bos';
 
 function detectRoute(
   message: string,
@@ -75,6 +76,10 @@ function detectRoute(
   if (/business\s*model|canvas\b|bmc\b|value\s*prop|customer\s*segment|pestel|swot|where\s*to\s*play|how\s*to\s*win|strategic\s*choice/i.test(msg)) {
     return 'business-model';
   }
+  // Note: match both singular and plural (OKR/OKRs, KPI/KPIs, objective/objectives)
+  if (/\bokrs?\b|key\s*results?|\bobjectives?\b|\bkpis?\b|business\s*operating\s*system|\bbos\b|check[\s-]?in|strategy\s+execution|execution\s+layer|capability\s+map/i.test(msg)) {
+    return 'bos';
+  }
 
   // 2. Sticky routing — continue what we were discussing
   if (/\bpurpose\b|\bvision\b|why.*exist|strategic\s*goal|mission\s*statement/i.test(recent)) {
@@ -83,11 +88,16 @@ function detectRoute(
   if (/business\s*model|canvas\b|value\s*prop|customer\s*segment|pestel|where\s*to\s*play|how\s*to\s*win/i.test(recent)) {
     return 'business-model';
   }
+  if (/\bokrs?\b|\bkpis?\b|\bobjectives?\b|key\s*results?|execution\s+layer|\bbos\b/i.test(recent)) {
+    return 'bos';
+  }
 
   // 3. Domain-completeness routing (only after at least 2 back-and-forth exchanges)
   if (history.length >= 4) {
     if (domains.strategyFoundation !== 'complete') return 'strategy-foundation';
     if (domains.businessModel !== 'complete') return 'business-model';
+    // If both foundation layers are done and BOS is already active, route to BOS
+    if (domains.bos === 'active') return 'bos';
   }
 
   return 'supervisor';
@@ -293,6 +303,12 @@ Every response MUST:
 2. Proactively surface urgent signals: if an OKR is at risk, a KPI is in the red, or a critical domain is empty, name it explicitly even if the user didn't ask
 3. End with ONE clear directive — the single most important next action
 
+CRITICAL — context fidelity:
+- The company_context above contains REAL data from the platform. ALWAYS reference it directly.
+- If business_operating_system shows OKRs, NAME THEM. Quote them: "Your 'Launch AI Partnership' OKR is at_risk at 30%."
+- NEVER say "we don't have OKRs listed" or "specific OKRs are not available" — if the <business_operating_system> block shows objectives, they exist. Read them and use them.
+- If a section shows "not yet defined" or "not yet configured", then (and only then) can you say that data is missing.
+
 Format the directive as the LAST LINE: **Next:** [specific action in one sentence]
 
 Good directive examples:
@@ -391,11 +407,15 @@ export async function runCoachAgent(req: ChatRequest, env: Env): Promise<ChatRes
   // Phase 1 Message 1: empty message + no history → scripted welcome
   const isWelcome = !req.message.trim() && history.length === 0;
 
-  // Phase 1 Message 2: user replied to welcome (history has exactly 1 assistant message)
-  // Content is fully scripted — no AI call needed, always consistent
-  const isPlatformOrientation = history.length === 1 && !!req.message.trim();
+  // Phase 1 Message 2: user replied to welcome (history has exactly 1 assistant message).
+  // Send the scripted orientation UNLESS the user already jumped to a specific domain —
+  // in that case route to the specialist immediately (they don't need the tour).
+  const isEarlyMessage = history.length === 1 && !!req.message.trim();
+  const domains = assessDomains(ctx);
+  const earlyRoute = isEarlyMessage ? detectRoute(req.message.trim(), history, domains) : null;
 
-  if (isPlatformOrientation) {
+  if (isEarlyMessage && earlyRoute === 'supervisor') {
+    // User gave a generic reply (e.g. "Path B", "let's go", "yes") — show orientation
     const content = buildPlatformOrientation();
     await db.addMessage(conversationId, 'user', req.message.trim());
     await db.addMessage(conversationId, 'assistant', content);
@@ -414,7 +434,7 @@ export async function runCoachAgent(req: ChatRequest, env: Env): Promise<ChatRes
   }
 
   // All other turns — route to specialist agent or supervisor
-  const domains = assessDomains(ctx);
+  // (domains already computed above for earlyRoute detection)
   let assistantContent: string;
 
   if (isWelcome) {
@@ -447,6 +467,9 @@ export async function runCoachAgent(req: ChatRequest, env: Env): Promise<ChatRes
       case 'business-model':
         assistantContent = await runBusinessModelAgent(ctx, history, userMessage, env);
         break;
+      case 'bos':
+        assistantContent = await runBosAgent(ctx, history, userMessage, env);
+        break;
       default: {
         // Supervisor handles general guidance, cross-domain questions, navigation
         const systemPrompt = buildSystemPrompt(ctx, history.length);
@@ -467,8 +490,15 @@ export async function runCoachAgent(req: ChatRequest, env: Env): Promise<ChatRes
     }
 
     if (!assistantContent) throw new Error('Empty response from AI');
+
+    // Auto-title: set the conversation title from the second meaningful user message
+    const priorUserCount = history.filter(m => m.role === 'user').length;
     await db.addMessage(conversationId, 'user', userMessage);
     await db.addMessage(conversationId, 'assistant', assistantContent);
+    if (priorUserCount === 1 && userMessage.length > 10) {
+      const title = userMessage.slice(0, 60).trim();
+      db.setConversationTitle(conversationId, title).catch(() => {});
+    }
   }
 
   return { conversation_id: conversationId, content: assistantContent, role: 'assistant' };
@@ -511,6 +541,9 @@ export async function runAgentContinue(
       break;
     case 'business-model':
       assistantContent = await runBusinessModelAgent(ctx, historyForAgent, userMessage, env);
+      break;
+    case 'bos':
+      assistantContent = await runBosAgent(ctx, historyForAgent, userMessage, env);
       break;
     default: {
       const systemPrompt = buildSystemPrompt(ctx, history.length);
