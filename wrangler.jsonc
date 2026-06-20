@@ -20,6 +20,11 @@
     { "binding": "AGENT_MEMORY", "id": "cf62243cfa4b4f049e78c166e7f98e84" }
   ],
 
+  // R2 bucket for raw document storage (audit trail + re-ingestion)
+  "r2_buckets": [
+    { "binding": "KNOWLEDGE_BUCKET", "bucket_name": "orchestr-a-knowledge-raw" }
+  ],
+
   "observability": {
     "enabled": true
   }

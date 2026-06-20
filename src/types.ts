@@ -3,9 +3,12 @@ export interface Env {
   AZURE_OPENAI_API_KEY: string;
   AZURE_OPENAI_DEPLOYMENT: string;
   AZURE_OPENAI_API_VERSION: string;
+  AZURE_OPENAI_EMBEDDING_DEPLOYMENT: string;
   SUPABASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
+  ADMIN_SECRET: string;
   AGENT_MEMORY: KVNamespace;
+  KNOWLEDGE_BUCKET: R2Bucket;
 }
 
 // ── Supabase data shapes ────────────────────────────────────────────────────
@@ -192,4 +195,39 @@ export interface ChatResponse {
   conversation_id: string;
   content: string;
   role: 'assistant';
+}
+
+// ── Knowledge Architecture ──────────────────────────────────────────────────
+
+export type KnowledgeType = 'framework' | 'benchmark' | 'market_intel' | 'company_docs' | 'company_memory';
+export type SourceType = 'github' | 'gcs' | 's3' | 'azure_blob' | 'url' | 'platform' | 'upload';
+
+export interface KnowledgeChunk {
+  content: string;
+  metadata: Record<string, unknown>;
+  rrf_score?: number;
+}
+
+export interface AgentKnowledgeConfig {
+  /** Map of phase name → array of topic_slugs to load for that phase */
+  phaseTopics: Record<string, string[]>;
+  /** Max chunks to retrieve per request */
+  topK: number;
+}
+
+export interface KnowledgeContext {
+  chunks: KnowledgeChunk[];
+  topicSlugs: string[];
+  phase: string;
+}
+
+export interface IngestRequest {
+  agentId: string;
+  knowledgeType: KnowledgeType;
+  topicSlug: string;
+  source: SourceType;
+  sourcePath: string;
+  title: string;
+  orgId?: string;
+  content?: string;
 }
