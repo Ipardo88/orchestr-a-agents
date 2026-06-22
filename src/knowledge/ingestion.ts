@@ -133,7 +133,8 @@ async function deleteExistingChunks(
   if (orgId) params.set('org_id', `eq.${orgId}`);
   else params.set('org_id', 'is.null');
 
-  await supabaseFetch(env, `knowledge_chunks?${params}`, 'DELETE', undefined);
+  const res = await supabaseFetch(env, `knowledge_chunks?${params}`, 'DELETE', undefined);
+  await assertOk(res, 'deleteExistingChunks');
 }
 
 async function insertChunks(rows: object[], env: Env): Promise<void> {
@@ -141,17 +142,19 @@ async function insertChunks(rows: object[], env: Env): Promise<void> {
   // Batch in groups of 50 to avoid request body limits
   for (let i = 0; i < rows.length; i += 50) {
     const batch = rows.slice(i, i + 50);
-    await supabaseFetch(env, 'knowledge_chunks', 'POST', batch);
+    const res = await supabaseFetch(env, 'knowledge_chunks', 'POST', batch);
+    await assertOk(res, 'insertChunks batch');
   }
 }
 
 async function markRegistryActive(id: string, chunkCount: number, env: Env): Promise<void> {
-  await supabaseFetch(
+  const res = await supabaseFetch(
     env,
     `knowledge_registry?id=eq.${id}`,
     'PATCH',
     { status: 'active', chunk_count: chunkCount, last_ingested_at: new Date().toISOString() },
   );
+  await assertOk(res, 'markRegistryActive');
 }
 
 function supabaseFetch(
@@ -171,4 +174,8 @@ function supabaseFetch(
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
+}
+
+async function assertOk(res: Response, ctx: string): Promise<void> {
+  if (!res.ok) throw new Error(`[ingestion] ${ctx} failed ${res.status}: ${await res.text()}`);
 }

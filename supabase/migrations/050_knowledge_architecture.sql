@@ -135,3 +135,7 @@ LANGUAGE sql STABLE AS $$
   ORDER BY f.rrf_score DESC
   LIMIT p_top_k;
 $$;
+
+-- Unique index required for PostgREST merge-duplicates upsert on knowledge_registry
+CREATE UNIQUE INDEX IF NOT EXISTS knowledge_registry_unique_doc_idx
+  ON public.knowledge_registry (agent_id, knowledge_type, topic_slug, COALESCE(org_id::text, ''));
