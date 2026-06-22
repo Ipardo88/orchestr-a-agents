@@ -99,7 +99,17 @@ export async function ingestDocument(
 // ── Supabase helpers ──────────────────────────────────────────────────────────
 
 async function upsertRegistry(req: IngestRequest, env: Env): Promise<string> {
-  const body = {
+  // DELETE any existing row first — more reliable than merge-duplicates with expression indexes
+  const params = new URLSearchParams({
+    agent_id: `eq.${req.agentId}`,
+    knowledge_type: `eq.${req.knowledgeType}`,
+    topic_slug: `eq.${req.topicSlug}`,
+  });
+  if (req.orgId) params.set('org_id', `eq.${req.orgId}`);
+  else params.set('org_id', 'is.null');
+  await supabaseFetch(env, `knowledge_registry?${params}`, 'DELETE', undefined);
+
+  const res = await supabaseFetch(env, 'knowledge_registry', 'POST', {
     agent_id: req.agentId,
     knowledge_type: req.knowledgeType,
     topic_slug: req.topicSlug,
@@ -108,13 +118,9 @@ async function upsertRegistry(req: IngestRequest, env: Env): Promise<string> {
     source_path: req.sourcePath,
     title: req.title,
     status: 'processing',
-  };
-
-  const res = await supabaseFetch(env, 'knowledge_registry', 'POST', body, {
-    Prefer: 'return=representation,resolution=merge-duplicates',
-  });
+  }, { Prefer: 'return=representation' });
   const rows = await res.json<Array<{ id: string }>>();
-  if (!rows[0]?.id) throw new Error('Failed to upsert knowledge_registry');
+  if (!rows[0]?.id) throw new Error('Failed to insert knowledge_registry');
   return rows[0].id;
 }
 
