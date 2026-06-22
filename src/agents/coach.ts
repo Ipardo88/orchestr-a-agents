@@ -1,9 +1,9 @@
-import { SupabaseClient } from '../tools/supabase';
+﻿import { SupabaseClient } from '../tools/supabase';
 import { callOpenAIText } from '../tools/openai';
 import type { Env, ChatRequest, ChatResponse, CompanyContext, ChatMessage } from '../types';
 import { runStrategyFoundationAgent } from './strategyFoundationAgent';
 import { runBusinessModelAgent } from './businessModelAgent';
-import { runBosAgent } from './bosAgent';
+import { AGENTS, getAgent } from './registry';
 
 // ── Block ID → label ──────────────────────────────────────────────────────────
 
@@ -69,27 +69,28 @@ function detectRoute(
     .map(m => (m.content ?? '').toLowerCase())
     .join(' ');
 
-  // 1. Explicit intent in the current message
+  // 1. Explicit intent in the current message — check registry agents first
+  for (const [id, agent] of AGENTS) {
+    if (agent.routing.routingSignals.test(msg)) return id as AgentRoute;
+  }
+  // Non-registry agents (hardcoded routing signals)
   if (/path\s*b|strategy\s*foundation|our\s*purpose|our\s*vision|strategic\s*goal/i.test(msg)) {
     return 'strategy-foundation';
   }
   if (/business\s*model|canvas\b|bmc\b|value\s*prop|customer\s*segment|pestel|swot|where\s*to\s*play|how\s*to\s*win|strategic\s*choice/i.test(msg)) {
     return 'business-model';
   }
-  // Note: match both singular and plural (OKR/OKRs, KPI/KPIs, objective/objectives)
-  if (/\bokrs?\b|key\s*results?|\bobjectives?\b|\bkpis?\b|business\s*operating\s*system|\bbos\b|check[\s-]?in|strategy\s+execution|execution\s+layer|capability\s+map/i.test(msg)) {
-    return 'bos';
-  }
 
-  // 2. Sticky routing — continue what we were discussing
+  // 2. Sticky routing — check registry agents first
+  for (const [id, agent] of AGENTS) {
+    if (agent.routing.stickySignals.test(recent)) return id as AgentRoute;
+  }
+  // Non-registry sticky routing
   if (/\bpurpose\b|\bvision\b|why.*exist|strategic\s*goal|mission\s*statement/i.test(recent)) {
     return 'strategy-foundation';
   }
   if (/business\s*model|canvas\b|value\s*prop|customer\s*segment|pestel|where\s*to\s*play|how\s*to\s*win/i.test(recent)) {
     return 'business-model';
-  }
-  if (/\bokrs?\b|\bkpis?\b|\bobjectives?\b|key\s*results?|execution\s+layer|\bbos\b/i.test(recent)) {
-    return 'bos';
   }
 
   // 3. Domain-completeness routing (only after at least 2 back-and-forth exchanges)
@@ -460,15 +461,16 @@ export async function runCoachAgent(req: ChatRequest, env: Env): Promise<ChatRes
 
     const route = detectRoute(userMessage, history, domains);
 
+    const registryAgent = getAgent(route);
+    if (registryAgent) {
+      assistantContent = await registryAgent.run(ctx, history, userMessage, env);
+    } else {
     switch (route) {
       case 'strategy-foundation':
         assistantContent = await runStrategyFoundationAgent(ctx, history, userMessage, env);
         break;
       case 'business-model':
         assistantContent = await runBusinessModelAgent(ctx, history, userMessage, env);
-        break;
-      case 'bos':
-        assistantContent = await runBosAgent(ctx, history, userMessage, env);
         break;
       default: {
         // Supervisor handles general guidance, cross-domain questions, navigation
@@ -488,6 +490,7 @@ export async function runCoachAgent(req: ChatRequest, env: Env): Promise<ChatRes
         assistantContent = result.content;
       }
     }
+    } // end else (registry agent)
 
     if (!assistantContent) throw new Error('Empty response from AI');
 
@@ -535,15 +538,16 @@ export async function runAgentContinue(
   const route = detectRoute(userMessage, historyForAgent, domains);
 
   let assistantContent: string;
+  const registryAgent2 = getAgent(route);
+  if (registryAgent2) {
+    assistantContent = await registryAgent2.run(ctx, historyForAgent, userMessage, env);
+  } else {
   switch (route) {
     case 'strategy-foundation':
       assistantContent = await runStrategyFoundationAgent(ctx, historyForAgent, userMessage, env);
       break;
     case 'business-model':
       assistantContent = await runBusinessModelAgent(ctx, historyForAgent, userMessage, env);
-      break;
-    case 'bos':
-      assistantContent = await runBosAgent(ctx, historyForAgent, userMessage, env);
       break;
     default: {
       const systemPrompt = buildSystemPrompt(ctx, history.length);
@@ -562,6 +566,7 @@ export async function runAgentContinue(
       assistantContent = result.content;
     }
   }
+  } // end else (registry agent)
 
   if (!assistantContent) throw new Error('Empty response from AI');
   await db.addMessage(conversationId, 'assistant', assistantContent);

@@ -1,21 +1,47 @@
-import { callOpenAIText } from '../tools/openai';
-import type { Env, CompanyContext, ChatMessage } from '../types';
+﻿import { BaseAgent } from './base/BaseAgent';
+import type { RoutingConfig } from './base/types';
+import type { CompanyContext, ChatMessage, AgentKnowledgeConfig, KnowledgeContext, Env } from '../types';
 
-// ── Business Operating System (BOS) Agent ─────────────────────────────────────
+// ── Business Operating System (BOS) Agent ────────────────────────────────────
 // The BOS is the execution layer — where strategy becomes daily action.
 // This agent guides through four sub-phases:
-//   5A. OKR Alignment Review  — diagnose what's there, find orphaned OKRs
-//   5B. OKR Design            — create/refine objectives + key results
-//   5C. KPI Design            — right metrics, right targets, right alerts
-//   5D. Capability Mapping    — link capabilities to "how to win"
+//   5A. OKR Alignment Review  – diagnose what's there, find orphaned OKRs
+//   5B. OKR Design            – create/refine objectives + key results
+//   5C. KPI Design            – right metrics, right targets, right alerts
+//   5D. Capability Mapping    – link capabilities to "how to win"
 //
 // Approach: DIAGNOSTIC FIRST. Start by analyzing what exists, surface gaps and
 // misalignments before designing anything new.
 
-function buildBosPrompt(ctx: CompanyContext): string {
+export class BosAgent extends BaseAgent {
+  readonly agentId = 'bos';
+  readonly description = 'Business Operating System — OKRs, KPIs, Capability Mapping';
+  readonly knowledgeConfig: AgentKnowledgeConfig = {
+    phaseTopics: {
+      default: ['okr-methodology', 'kpi-design', 'capability-mapping'],
+      'okr|objective|key result': ['okr-methodology'],
+      'kpi|metric|threshold': ['kpi-design'],
+      'capability': ['capability-mapping'],
+    },
+    topK: 5,
+  };
+  readonly routing: RoutingConfig = {
+    routingSignals: /\bokrs?\b|key\s*results?|\bobjectives?\b|\bkpis?\b|business\s*operating\s*system|\bbos\b|check[\s-]?in|strategy\s+execution|execution\s+layer|capability\s+map/i,
+    stickySignals: /\bokrs?\b|\bkpis?\b|\bobjectives?\b|key\s*results?|execution\s+layer|\bbos\b/i,
+    domainKey: 'bos',
+  };
+
+  buildSystemPrompt(ctx: CompanyContext, knowledge: KnowledgeContext, _history: ChatMessage[]): string {
+    const knowledgeBlock = this.formatKnowledge(knowledge);
+    return buildBosSystemPrompt(ctx) + (knowledgeBlock ? `\n\n${knowledgeBlock}` : '');
+  }
+}
+
+// ── Core prompt builder (private) ─────────────────────────────────────────────
+function buildBosSystemPrompt(ctx: CompanyContext): string {
   const lines: string[] = [];
 
-  // ── Company context ─────────────────────────────────────────────────────────
+  // ── Company context ──────────────────────────────────────────────────────────
   lines.push('<company_context>');
   lines.push(`Company: ${ctx.name}`);
   if (ctx.industry)  lines.push(`Industry: ${ctx.industry}`);
@@ -60,8 +86,8 @@ function buildBosPrompt(ctx: CompanyContext): string {
   lines.push('Current KPIs:');
   if (ctx.kpis.length) {
     ctx.kpis.forEach(k => {
-      const curr = k.current_value != null ? `current: ${k.current_value}${k.unit ?? ''}` : 'no current value';
-      const tgt  = k.target_value != null ? `target: ${k.target_value}${k.unit ?? ''}` : '';
+      const curr  = k.current_value != null ? `current: ${k.current_value}${k.unit ?? ''}` : 'no current value';
+      const tgt   = k.target_value != null ? `target: ${k.target_value}${k.unit ?? ''}` : '';
       const alert = k.threshold_red != null ? `red alert: ${k.threshold_red}${k.unit ?? ''}` : '';
       const parts = [curr, tgt, alert].filter(Boolean).join(' · ');
       lines.push(`  ${k.name} (${k.directionality}) — ${parts}`);
@@ -81,7 +107,7 @@ function buildBosPrompt(ctx: CompanyContext): string {
   }
   lines.push('</company_context>');
 
-  // ── Role + methodology ──────────────────────────────────────────────────────
+  // ── Role + methodology ───────────────────────────────────────────────────────
   lines.push(`
 <role>
 You are the Business Operating System Architect — a specialist agent in the OrchestrA multi-agent system. Your job is to help the user design, align, and improve the execution layer of their business: OKRs, KPIs, and capabilities.
@@ -94,9 +120,9 @@ You are diagnostic and direct. Start by analyzing what's already in the platform
 <methodology>
 Always begin with a DIAGNOSTIC before designing anything new. Work through four sub-phases:
 
-───────────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────
 SUB-PHASE 5A — OKR ALIGNMENT REVIEW (always start here)
-───────────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────
 Analyze the existing OKRs against the strategic goals and Playing to Win choices.
 
 Diagnostic questions to answer before responding:
@@ -110,9 +136,9 @@ Open with a clear diagnosis: "Here is what I see in your BOS..." Then surface th
 
 If no OKRs exist: immediately move to 5B (OKR Design) and say so.
 
-───────────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────
 SUB-PHASE 5B — OKR DESIGN (create or refine)
-───────────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────
 Guide the user to create or refine objectives and key results.
 
 OKR design principles:
@@ -130,9 +156,9 @@ When designing:
 
 For at-risk/behind OKRs: ask "What's causing the gap? Is it an execution problem or a misaligned target?"
 
-───────────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────
 SUB-PHASE 5C — KPI DESIGN
-───────────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────
 Review existing KPIs and identify gaps.
 
 KPI design principles:
@@ -148,9 +174,9 @@ Diagnostic:
 
 For each gap: propose a specific KPI with a suggested target and threshold.
 
-───────────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────
 SUB-PHASE 5D — CAPABILITY MAPPING
-───────────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────
 Capabilities are what the business must be genuinely excellent at to execute its strategy.
 They link Playing to Win → BOS → people development.
 
@@ -190,32 +216,12 @@ Never end without a **Next:** line.
   return lines.join('\n');
 }
 
+// ── Backward-compat export ────────────────────────────────────────────────────
 export async function runBosAgent(
   ctx: CompanyContext,
   history: ChatMessage[],
   userMessage: string,
   env: Env,
 ): Promise<string> {
-  const systemPrompt = buildBosPrompt(ctx);
-
-  const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-    { role: 'system', content: systemPrompt },
-    ...history
-      .filter(m => m.role !== 'tool' && m.content)
-      .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content as string })),
-    { role: 'user', content: userMessage },
-  ];
-
-  const { content } = await callOpenAIText(
-    {
-      endpoint: env.AZURE_OPENAI_ENDPOINT,
-      apiKey: env.AZURE_OPENAI_API_KEY,
-      deployment: env.AZURE_OPENAI_DEPLOYMENT,
-      apiVersion: env.AZURE_OPENAI_API_VERSION,
-    },
-    messages,
-    950,
-  );
-
-  return content;
+  return new BosAgent().run(ctx, history, userMessage, env);
 }
