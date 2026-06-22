@@ -1,9 +1,10 @@
-import { runStrategyHealthAgent } from './agents/strategy-health';
+﻿import { runStrategyHealthAgent } from './agents/strategy-health';
 import { runCoachAgent, runAgentContinue } from './agents/coach';
 import { SupabaseClient } from './tools/supabase';
-import type { Env, AgentType, TriggerSource, ChatRequest } from './types';
+import type { Env, AgentType, TriggerSource, ChatRequest, IngestRequest } from './types';
+import { ingestDocument } from './knowledge/ingestion';
 
-// ── CORS headers for requests from the web app ────────────────────────────
+// â”€â”€ CORS headers for requests from the web app â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
@@ -67,14 +68,14 @@ async function dispatchAgent(
 }
 
 export default {
-  // ── Cron triggers (autonomous scheduled runs) ────────────────────────────
+  // â”€â”€ Cron triggers (autonomous scheduled runs) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     const agentType: AgentType = controller.cron === '0 9 * * 1' ? 'strategy_health' : 'performance_watch';
-    console.log(`[cron] ${controller.cron} → ${agentType}`);
+    console.log(`[cron] ${controller.cron} â†’ ${agentType}`);
     ctx.waitUntil(dispatchAgent(agentType, null, 'cron', env));
   },
 
-  // ── HTTP handler (manual triggers from web app) ──────────────────────────
+  // â”€â”€ HTTP handler (manual triggers from web app) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: CORS });
@@ -99,7 +100,7 @@ export default {
       const body = await request.json<{ org_id?: string }>();
       const orgId = body.org_id ?? null;
 
-      // Fire-and-forget — respond immediately, run in background
+      // Fire-and-forget â€” respond immediately, run in background
       ctx.waitUntil(dispatchAgent(agentType, orgId, 'manual', env));
 
       return Response.json(
@@ -108,7 +109,7 @@ export default {
       );
     }
 
-    // ── Conversation list: GET /conversations?org_id=X&user_id=Y ────────────
+    // â”€â”€ Conversation list: GET /conversations?org_id=X&user_id=Y â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (request.method === 'GET' && url.pathname === '/conversations') {
       const orgId  = url.searchParams.get('org_id');
       const userId = url.searchParams.get('user_id');
@@ -125,7 +126,7 @@ export default {
       }
     }
 
-    // ── New conversation: POST /conversations ────────────────────────────────
+    // â”€â”€ New conversation: POST /conversations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (request.method === 'POST' && url.pathname === '/conversations') {
       const body = await request.json<{ org_id: string; user_id: string }>();
       if (!body.org_id || !body.user_id) {
@@ -141,7 +142,7 @@ export default {
       }
     }
 
-    // ── Conversation history with IDs: GET /history?org_id=X&user_id=Y[&conversation_id=Z]
+    // â”€â”€ Conversation history with IDs: GET /history?org_id=X&user_id=Y[&conversation_id=Z]
     // Returns message IDs + timestamps (needed for edit+regenerate).
     // If no conversation_id, loads or creates the most recent one.
     if (request.method === 'GET' && url.pathname === '/history') {
@@ -165,7 +166,7 @@ export default {
       }
     }
 
-    // ── Edit message + regenerate: PATCH /messages ────────────────────────────
+    // â”€â”€ Edit message + regenerate: PATCH /messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Updates user message content, deletes subsequent messages, re-runs AI.
     if (request.method === 'PATCH' && url.pathname === '/messages') {
       const body = await request.json<{
@@ -209,6 +210,32 @@ export default {
       }
     }
 
+
+    // Admin: POST /admin/ingest – seed framework knowledge
+    // Protected by ADMIN_SECRET header to prevent unauthorized ingestion.
+    if (request.method === 'POST' && url.pathname === '/admin/ingest') {
+      const secret = request.headers.get('x-admin-secret');
+      if (!secret || secret !== env.ADMIN_SECRET) {
+        return Response.json({ error: 'Unauthorized' }, { status: 401, headers: CORS });
+      }
+
+      const body = await request.json<IngestRequest>();
+      if (!body.agentId || !body.knowledgeType || !body.topicSlug || !body.source || !body.sourcePath || !body.title) {
+        return Response.json({ error: 'Missing required fields: agentId, knowledgeType, topicSlug, source, sourcePath, title' }, { status: 400, headers: CORS });
+      }
+
+      try {
+        const result = await ingestDocument(body, env);
+        return Response.json({ ok: true, ...result }, { headers: CORS });
+      } catch (err) {
+        console.error('[admin/ingest] error:', err);
+        return Response.json(
+          { error: err instanceof Error ? err.message : 'Ingestion failed' },
+          { status: 500, headers: CORS },
+        );
+      }
+    }
     return new Response('Not found', { status: 404, headers: CORS });
   },
 } satisfies ExportedHandler<Env>;
+
