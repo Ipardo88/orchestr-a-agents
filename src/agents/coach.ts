@@ -97,8 +97,11 @@ function detectRoute(
   if (history.length >= 4) {
     if (domains.strategyFoundation !== 'complete') return 'strategy-foundation';
     if (domains.businessModel !== 'complete') return 'business-model';
-    // If both foundation layers are done and BOS is already active, route to BOS
-    if (domains.bos === 'active') return 'bos';
+    // Check registry agents via domainKey loop
+    for (const [agentId, agent] of AGENTS.entries()) {
+      const dk = agent.routing.domainKey as keyof typeof domains;
+      if (domains[dk] === 'active') return agentId as AgentRoute;
+    }
   }
 
   return 'supervisor';

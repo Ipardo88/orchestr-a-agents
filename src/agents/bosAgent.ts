@@ -1,4 +1,4 @@
-﻿import { BaseAgent } from './base/BaseAgent';
+import { BaseAgent } from './base/BaseAgent';
 import type { RoutingConfig } from './base/types';
 import type { CompanyContext, ChatMessage, AgentKnowledgeConfig, KnowledgeContext, Env } from '../types';
 
