@@ -61,15 +61,14 @@ export async function contextualizeChunk(
 }
 
 async function callAzure(prompt: string, env: Env): Promise<string> {
-  const url = `${env.AZURE_OPENAI_ENDPOINT}/openai/deployments/${env.AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=${env.AZURE_OPENAI_API_VERSION}`;
-
-  const response = await fetch(url, {
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'api-key': env.AZURE_OPENAI_API_KEY,
+      'Authorization': `Bearer ${env.OPENAI_API_KEY}`,
     },
     body: JSON.stringify({
+      model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 200,
       temperature: 0,
@@ -77,7 +76,7 @@ async function callAzure(prompt: string, env: Env): Promise<string> {
   });
 
   if (!response.ok) {
-    throw new Error(`Azure OpenAI error ${response.status}: ${await response.text()}`);
+    throw new Error(`OpenAI error ${response.status}: ${await response.text()}`);
   }
 
   const json = await response.json<{ choices: Array<{ message: { content: string } }> }>();

@@ -132,12 +132,7 @@ export async function runStrategyHealthAgent(
   // 3. Call Azure OpenAI
   const prompt = buildPrompt(org.name, objectives, atRiskObjectives, kpiAlerts, goalTitles, capabilityGaps);
   const { result: report, usage } = await callOpenAI<StrategyHealthReport>(
-    {
-      endpoint: env.AZURE_OPENAI_ENDPOINT,
-      apiKey: env.AZURE_OPENAI_API_KEY,
-      deployment: env.AZURE_OPENAI_DEPLOYMENT,
-      apiVersion: env.AZURE_OPENAI_API_VERSION,
-    },
+    env.OPENAI_API_KEY,
     SYSTEM_PROMPT,
     prompt,
   );

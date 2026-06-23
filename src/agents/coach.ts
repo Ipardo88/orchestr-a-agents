@@ -449,11 +449,7 @@ export async function runCoachAgent(req: ChatRequest, env: Env): Promise<ChatRes
       { role: 'system', content: systemPrompt },
       { role: 'user',   content: userPrompt },
     ];
-    const result = await callOpenAIText(
-      { endpoint: env.AZURE_OPENAI_ENDPOINT, apiKey: env.AZURE_OPENAI_API_KEY,
-        deployment: env.AZURE_OPENAI_DEPLOYMENT, apiVersion: env.AZURE_OPENAI_API_VERSION },
-      messages, 600,
-    );
+    const result = await callOpenAIText(env.OPENAI_API_KEY, messages, 600);
     assistantContent = result.content;
     if (!assistantContent) throw new Error('Empty response from AI');
     await db.addMessage(conversationId, 'assistant', assistantContent);
@@ -485,11 +481,7 @@ export async function runCoachAgent(req: ChatRequest, env: Env): Promise<ChatRes
             .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content as string })),
           { role: 'user', content: userMessage },
         ];
-        const result = await callOpenAIText(
-          { endpoint: env.AZURE_OPENAI_ENDPOINT, apiKey: env.AZURE_OPENAI_API_KEY,
-            deployment: env.AZURE_OPENAI_DEPLOYMENT, apiVersion: env.AZURE_OPENAI_API_VERSION },
-          messages, 900,
-        );
+        const result = await callOpenAIText(env.OPENAI_API_KEY, messages, 900);
         assistantContent = result.content;
       }
     }
@@ -561,11 +553,7 @@ export async function runAgentContinue(
           .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content as string })),
         { role: 'user', content: userMessage },
       ];
-      const result = await callOpenAIText(
-        { endpoint: env.AZURE_OPENAI_ENDPOINT, apiKey: env.AZURE_OPENAI_API_KEY,
-          deployment: env.AZURE_OPENAI_DEPLOYMENT, apiVersion: env.AZURE_OPENAI_API_VERSION },
-        messages, 900,
-      );
+      const result = await callOpenAIText(env.OPENAI_API_KEY, messages, 900);
       assistantContent = result.content;
     }
   }

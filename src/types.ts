@@ -1,9 +1,5 @@
 export interface Env {
-  AZURE_OPENAI_ENDPOINT: string;
-  AZURE_OPENAI_API_KEY: string;
-  AZURE_OPENAI_DEPLOYMENT: string;
-  AZURE_OPENAI_API_VERSION: string;
-  AZURE_OPENAI_EMBEDDING_DEPLOYMENT: string;
+  OPENAI_API_KEY: string;
   SUPABASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
   ADMIN_SECRET: string;

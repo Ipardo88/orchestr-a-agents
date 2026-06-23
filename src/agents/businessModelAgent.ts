@@ -225,12 +225,7 @@ export async function runBusinessModelAgent(
   ];
 
   const { content } = await callOpenAIText(
-    {
-      endpoint: env.AZURE_OPENAI_ENDPOINT,
-      apiKey: env.AZURE_OPENAI_API_KEY,
-      deployment: env.AZURE_OPENAI_DEPLOYMENT,
-      apiVersion: env.AZURE_OPENAI_API_VERSION,
-    },
+    env.OPENAI_API_KEY,
     messages,
     950,
   );

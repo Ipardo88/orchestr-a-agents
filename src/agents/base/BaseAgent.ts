@@ -49,16 +49,7 @@ export abstract class BaseAgent {
       { role: 'user', content: userMessage },
     ];
 
-    const { content } = await callOpenAIText(
-      {
-        endpoint: env.AZURE_OPENAI_ENDPOINT,
-        apiKey: env.AZURE_OPENAI_API_KEY,
-        deployment: env.AZURE_OPENAI_DEPLOYMENT,
-        apiVersion: env.AZURE_OPENAI_API_VERSION,
-      },
-      messages,
-      950,
-    );
+    const { content } = await callOpenAIText(env.OPENAI_API_KEY, messages, 950);
 
     if (!content) throw new Error(`Empty response from ${this.agentId}`);
 
