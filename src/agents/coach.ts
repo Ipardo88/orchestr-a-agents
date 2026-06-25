@@ -1,8 +1,9 @@
 ﻿import { SupabaseClient } from '../tools/supabase';
-import { callOpenAIText } from '../tools/openai';
-import type { Env, ChatRequest, ChatResponse, CompanyContext, ChatMessage } from '../types';
+import { callOpenAIText, callOpenAIWithTools } from '../tools/openai';
+import type { Env, ChatRequest, ChatResponse, CompanyContext, ChatMessage, Proposal } from '../types';
+import { PROPOSAL_TOOLS } from '../tools/proposalTools';
+import { buildProposals } from './proposalBuilder';
 import { runStrategyFoundationAgent } from './strategyFoundationAgent';
-import { runBusinessModelAgent } from './businessModelAgent';
 import { AGENTS, getAgent } from './registry';
 
 // ── Block ID → label ──────────────────────────────────────────────────────────
@@ -332,7 +333,18 @@ Never end without a **Next:** line. This is non-negotiable.
 Flowing prose. 2–4 short paragraphs. No preambles ("Great question!", "Based on your context...").
 Bullets only for genuinely enumerable items. Reference the platform by module name when directing the user to act.
 Last line is always: **Next:** [directive]
-</response_format>`);
+</response_format>
+
+<proposal_capability>
+You can propose changes to the platform using tool calls. Use proposal tools when:
+- The user explicitly asks you to create, draft, or set up strategy elements
+- Key platform data is empty and you have enough context to populate it
+- You are suggesting specific, actionable next steps the user could immediately add
+
+ALWAYS explain in your text what you are proposing and why, then make the tool call.
+You may make multiple tool calls in a single response.
+Draft-first principle: always propose — never write autonomously.
+</proposal_capability>`);
 
   return lines.join('\n');
 }
@@ -440,6 +452,7 @@ export async function runCoachAgent(req: ChatRequest, env: Env): Promise<ChatRes
   // All other turns — route to specialist agent or supervisor
   // (domains already computed above for earlyRoute detection)
   let assistantContent: string;
+  let proposals: Proposal[] | undefined;
 
   if (isWelcome) {
     // Phase 1 Message 1: AI-generated personalised welcome
@@ -468,9 +481,6 @@ export async function runCoachAgent(req: ChatRequest, env: Env): Promise<ChatRes
       case 'strategy-foundation':
         assistantContent = await runStrategyFoundationAgent(ctx, history, userMessage, env);
         break;
-      case 'business-model':
-        assistantContent = await runBusinessModelAgent(ctx, history, userMessage, env);
-        break;
       default: {
         // Supervisor handles general guidance, cross-domain questions, navigation
         const systemPrompt = buildSystemPrompt(ctx, history.length);
@@ -481,8 +491,15 @@ export async function runCoachAgent(req: ChatRequest, env: Env): Promise<ChatRes
             .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content as string })),
           { role: 'user', content: userMessage },
         ];
-        const result = await callOpenAIText(env.OPENAI_API_KEY, messages, 900);
-        assistantContent = result.content;
+        const { content: rawContent, toolCalls } = await callOpenAIWithTools(
+          env.OPENAI_API_KEY,
+          messages,
+          PROPOSAL_TOOLS,
+        );
+        assistantContent = rawContent || (toolCalls.length > 0
+          ? "I've prepared some proposals for your review below."
+          : "I'm not sure how to help with that. Could you clarify?");
+        proposals = buildProposals(toolCalls, req.org_id);
       }
     }
     } // end else (registry agent)
@@ -499,7 +516,12 @@ export async function runCoachAgent(req: ChatRequest, env: Env): Promise<ChatRes
     }
   }
 
-  return { conversation_id: conversationId, content: assistantContent, role: 'assistant' };
+  return {
+    conversation_id: conversationId,
+    content: assistantContent,
+    role: 'assistant',
+    proposals: proposals && proposals.length > 0 ? proposals : undefined,
+  };
 }
 
 /**
@@ -540,9 +562,6 @@ export async function runAgentContinue(
   switch (route) {
     case 'strategy-foundation':
       assistantContent = await runStrategyFoundationAgent(ctx, historyForAgent, userMessage, env);
-      break;
-    case 'business-model':
-      assistantContent = await runBusinessModelAgent(ctx, historyForAgent, userMessage, env);
       break;
     default: {
       const systemPrompt = buildSystemPrompt(ctx, history.length);
