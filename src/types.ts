@@ -96,6 +96,27 @@ export type InsightStatus = 'new' | 'read' | 'actioned' | 'dismissed';
 export type AgentType = 'strategy_health' | 'performance_watch' | 'execution_coach';
 export type TriggerSource = 'cron' | 'manual' | 'webhook';
 
+// ── Proposal system ──────────────────────────────────────────────────────────
+
+export type ProposalAction = 'create' | 'update';
+
+export type ProposalEntity =
+  | 'strategic_goal'
+  | 'value_creation_target'
+  | 'objective'
+  | 'key_result'
+  | 'organization'
+  | 'business_model_canvas';
+
+export interface Proposal {
+  id: string;
+  action: ProposalAction;
+  entity: ProposalEntity;
+  label: string;
+  payload: Record<string, unknown>;
+  orgId: string;
+}
+
 // ── AI Coach (conversational) ───────────────────────────────────────────────
 
 export interface OrgProfile {
@@ -191,6 +212,7 @@ export interface ChatResponse {
   conversation_id: string;
   content: string;
   role: 'assistant';
+  proposals?: Proposal[];
 }
 
 // ── Knowledge Architecture ──────────────────────────────────────────────────
