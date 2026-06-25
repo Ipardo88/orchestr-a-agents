@@ -79,3 +79,56 @@ export async function callOpenAI<T>(
     },
   };
 }
+
+// ── Tool calling ──────────────────────────────────────────────────────────────
+
+export interface ToolCall {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string; // JSON string — parse before use
+  };
+}
+
+interface OpenAIToolResponse {
+  choices: Array<{
+    message: {
+      content: string | null;
+      tool_calls?: ToolCall[];
+    };
+  }>;
+}
+
+export async function callOpenAIWithTools(
+  apiKey: string,
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  tools: readonly object[],
+  maxTokens = 900,
+): Promise<{ content: string; toolCalls: ToolCall[] }> {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages,
+      tools: [...tools],
+      max_tokens: maxTokens,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`OpenAI ${res.status}: ${err}`);
+  }
+
+  const data = await res.json() as OpenAIToolResponse;
+  const msg = data.choices[0].message;
+  return {
+    content: msg.content ?? '',
+    toolCalls: msg.tool_calls ?? [],
+  };
+}
