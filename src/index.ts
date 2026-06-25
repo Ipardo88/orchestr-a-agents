@@ -1,7 +1,7 @@
 ﻿import { runStrategyHealthAgent } from './agents/strategy-health';
 import { runCoachAgent, runAgentContinue } from './agents/coach';
 import { SupabaseClient } from './tools/supabase';
-import type { Env, AgentType, TriggerSource, ChatRequest, IngestRequest } from './types';
+import type { Env, AgentType, TriggerSource, ChatRequest, IngestRequest, Proposal } from './types';
 import { ingestDocument } from './knowledge/ingestion';
 
 // â”€â”€ CORS headers for requests from the web app â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -210,6 +210,119 @@ export default {
       }
     }
 
+
+    // ── POST /proposals/apply ─────────────────────────────────────────────────────
+
+    if (request.method === 'POST' && url.pathname === '/proposals/apply') {
+      const origin = request.headers.get('Origin') ?? '';
+      if (env.ALLOWED_ORIGINS && !env.ALLOWED_ORIGINS.split(',').includes(origin)) {
+        return new Response('Forbidden', { status: 403 });
+      }
+
+      let body: { proposals: Proposal[]; userId?: string };
+      try {
+        body = await request.json() as { proposals: Proposal[]; userId?: string };
+      } catch {
+        return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin },
+        });
+      }
+
+      const { proposals } = body;
+      if (!Array.isArray(proposals) || proposals.length === 0) {
+        return new Response(JSON.stringify({ error: 'proposals array required' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin },
+        });
+      }
+
+      const db = new SupabaseClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
+      // Map proposal ID → created DB id (for KR parent linking)
+      const createdIds = new Map<string, string>();
+      const results: Array<{ id: string; status: 'applied' | 'error'; error?: string }> = [];
+
+      for (const proposal of proposals) {
+        try {
+          const { id, action, entity, payload, orgId } = proposal;
+
+          if (action === 'create') {
+            if (entity === 'strategic_goal') {
+              const dbId = await db.createStrategicGoal(orgId, {
+                goal: String(payload.goal),
+                category: String(payload.category),
+                timeframe: payload.timeframe ? String(payload.timeframe) : undefined,
+              });
+              createdIds.set(id, dbId);
+
+            } else if (entity === 'value_creation_target') {
+              const dbId = await db.createValueCreationTarget(orgId, {
+                metric: String(payload.metric),
+                target_value: String(payload.target_value),
+                current_value: payload.current_value ? String(payload.current_value) : undefined,
+              });
+              createdIds.set(id, dbId);
+
+            } else if (entity === 'objective') {
+              const dbId = await db.createObjective(orgId, {
+                title: String(payload.title),
+                level: String(payload.level),
+                description: payload.description ? String(payload.description) : undefined,
+                cycle_start: payload.cycle_start ? String(payload.cycle_start) : undefined,
+                cycle_end: payload.cycle_end ? String(payload.cycle_end) : undefined,
+              });
+              createdIds.set(id, dbId);
+
+            } else if (entity === 'key_result') {
+              // Resolve parent objective DB id via parent_proposal_id
+              const parentProposalId = payload.parent_proposal_id ? String(payload.parent_proposal_id) : null;
+              const objectiveId = parentProposalId ? (createdIds.get(parentProposalId) ?? null) : null;
+              if (!objectiveId) {
+                results.push({ id, status: 'error', error: 'Parent objective not found or not yet applied' });
+                continue;
+              }
+              const dbId = await db.createKeyResult(objectiveId, {
+                title: String(payload.title),
+                metric_type: String(payload.metric_type),
+                unit: payload.unit ? String(payload.unit) : undefined,
+                start_value: payload.start_value !== undefined ? Number(payload.start_value) : undefined,
+                target_value: Number(payload.target_value),
+              });
+              createdIds.set(id, dbId);
+            }
+          } else if (action === 'update') {
+            if (entity === 'organization') {
+              await db.updateOrganizationField(
+                orgId,
+                payload.field as 'vision' | 'mission' | 'long_term_ambition',
+                String(payload.value),
+              );
+
+            } else if (entity === 'business_model_canvas') {
+              await db.upsertBMCBlock(orgId, String(payload.block), String(payload.content));
+            }
+          }
+
+          results.push({ id: proposal.id, status: 'applied' });
+        } catch (err) {
+          results.push({
+            id: proposal.id,
+            status: 'error',
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
+      const appliedCount = results.filter(r => r.status === 'applied').length;
+      return new Response(
+        JSON.stringify({ applied: appliedCount, total: proposals.length, results }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': origin },
+        },
+      );
+    }
 
     // Admin: POST /admin/ingest – seed framework knowledge
     // Protected by ADMIN_SECRET header to prevent unauthorized ingestion.

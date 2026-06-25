@@ -5,6 +5,8 @@ export interface Env {
   ADMIN_SECRET: string;
   AGENT_MEMORY: KVNamespace;
   KNOWLEDGE_BUCKET: R2Bucket;
+  FRED_API_KEY?: string;
+  ALLOWED_ORIGINS?: string;
 }
 
 // ── Supabase data shapes ────────────────────────────────────────────────────
