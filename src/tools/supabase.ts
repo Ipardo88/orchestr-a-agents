@@ -458,6 +458,112 @@ export class SupabaseClient {
 
   // ── Writers ───────────────────────────────────────────────────────────────
 
+  // ── Proposal write methods ────────────────────────────────────────────────
+
+  async createStrategicGoal(
+    orgId: string,
+    data: { goal: string; category: string; timeframe?: string },
+  ): Promise<string> {
+    const rows = await this.post<unknown>('strategic_goals', {
+      org_id: orgId,
+      goal: data.goal,
+      category: data.category,
+      timeframe: data.timeframe ?? null,
+    });
+    return (rows as { id: string }[])[0].id;
+  }
+
+  async createValueCreationTarget(
+    orgId: string,
+    data: { metric: string; target_value: string; current_value?: string },
+  ): Promise<string> {
+    const rows = await this.post<unknown>('value_creation_targets', {
+      org_id: orgId,
+      metric: data.metric,
+      target_value: data.target_value,
+      current_value: data.current_value ?? null,
+    });
+    return (rows as { id: string }[])[0].id;
+  }
+
+  async createObjective(
+    orgId: string,
+    data: {
+      title: string;
+      level: string;
+      description?: string;
+      cycle_start?: string;
+      cycle_end?: string;
+    },
+  ): Promise<string> {
+    const rows = await this.post<unknown>('objectives', {
+      org_id: orgId,
+      title: data.title,
+      level: data.level,
+      description: data.description ?? null,
+      cycle_start: data.cycle_start ?? null,
+      cycle_end: data.cycle_end ?? null,
+      status: 'draft',
+      progress: 0,
+    });
+    return (rows as { id: string }[])[0].id;
+  }
+
+  async createKeyResult(
+    objectiveId: string,
+    data: {
+      title: string;
+      metric_type: string;
+      unit?: string;
+      start_value?: number;
+      target_value: number;
+    },
+  ): Promise<string> {
+    const rows = await this.post<unknown>('key_results', {
+      objective_id: objectiveId,
+      title: data.title,
+      metric_type: data.metric_type,
+      unit: data.unit ?? null,
+      start_value: data.start_value ?? 0,
+      target_value: data.target_value,
+      current_value: data.start_value ?? 0,
+    });
+    return (rows as { id: string }[])[0].id;
+  }
+
+  async updateOrganizationField(
+    orgId: string,
+    field: 'vision' | 'mission' | 'long_term_ambition',
+    value: string,
+  ): Promise<void> {
+    await this.patchWhere('organizations', { id: `eq.${orgId}` }, { [field]: value });
+  }
+
+  async upsertBMCBlock(orgId: string, block: string, content: string): Promise<void> {
+    const BMC_COLUMN_MAP: Record<string, string> = {
+      value: 'value_proposition',
+      segments: 'customer_segments',
+      channels: 'channels',
+      relationships: 'customer_relationships',
+      revenue: 'revenue_model',
+      resources: 'key_resources',
+      activities: 'key_activities',
+      partners: 'key_partners',
+      cost: 'cost_structure',
+    };
+    const column = BMC_COLUMN_MAP[block];
+    if (!column) throw new Error(`Unknown BMC block: ${block}`);
+
+    const bus = await this.get<{ id: string }>('business_units', {
+      org_id: `eq.${orgId}`,
+      select: 'id',
+      limit: '1',
+    });
+    if (!bus[0]) throw new Error(`No business unit found for org ${orgId}`);
+
+    await this.patchWhere('business_model_profiles', { business_unit_id: `eq.${bus[0].id}` }, { [column]: content });
+  }
+
   async createInsight(params: {
     orgId: string;
     agentType: AgentType;
