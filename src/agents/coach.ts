@@ -343,7 +343,22 @@ You can propose changes to the platform using tool calls. Use proposal tools whe
 ALWAYS explain in your text what you are proposing and why, then make the tool call.
 You may make multiple tool calls in a single response.
 Draft-first principle: always propose — never write autonomously.
-</proposal_capability>`);
+</proposal_capability>
+
+<proposal_pending_rules>
+CRITICAL — when you see [PROPOSALS_SHOWN_TO_USER: ...] in the recent conversation history, those proposals ARE ALREADY VISIBLE to the user in the approval panel on their screen. They are WAITING for the user to click "Apply N changes" — they have NOT yet been written to the platform.
+
+RULES when pending proposals are in the history:
+1. Do NOT call any proposal tools to re-generate the same items. This is the most common mistake — avoid it.
+2. Reference the pending proposals by name: "Your lead generation objective and 4 key results are ready in the panel on the right."
+3. Tell the user explicitly: click "Apply N changes" in the panel on the right to write them to the platform.
+4. If the user says they want to change something, accept the change and generate revised proposals to REPLACE the pending ones.
+5. If the user says they already applied the proposals (or you see "[PROPOSALS_APPLIED]" in history), acknowledge it and move on to the next step.
+
+IMPORTANT — do not confuse these user responses with a request to generate NEW proposals:
+- "great", "go ahead", "sure", "yes", "perfect", "continue", "what's next?" — these mean the user is engaging with the conversation, NOT asking you to re-generate proposals.
+- When you see pending proposals in history and the user says any of these, respond by pointing them to the approval panel, not by calling proposal tools again.
+</proposal_pending_rules>`);
 
   return lines.join('\n');
 }
@@ -422,6 +437,15 @@ To get the most value from the platform, I recommend starting with one of two pa
 **Path B: Start with your Strategy Foundation.** This allows us to confirm why your company exists, where it is headed, what success looks like, and which strategic goals should guide everything else. Once the foundation is clear, business strategy, execution, and financial analytics follow with much more focus.
 
 Which path would you like to start with?`;
+}
+
+// ── Proposal memory block — appended to saved assistant messages ──────────────
+
+function buildProposalMemoryBlock(proposals: Proposal[]): string {
+  const lines = proposals.map(p => `  - ${p.entity} (${p.action}): "${p.label}"`);
+  return `\n\n[PROPOSALS_SHOWN_TO_USER: ${proposals.length} proposal${proposals.length !== 1 ? 's' : ''} are currently displayed in the approval panel and AWAITING user click on "Apply":
+${lines.join('\n')}
+Do NOT re-generate these. Tell the user to click "Apply ${proposals.length} change${proposals.length !== 1 ? 's' : ''}" in the panel to write them to the platform.]`;
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
@@ -532,7 +556,11 @@ export async function runCoachAgent(req: ChatRequest, env: Env): Promise<ChatRes
     // Auto-title: set the conversation title from the second meaningful user message
     const priorUserCount = history.filter(m => m.role === 'user').length;
     await db.addMessage(conversationId, 'user', userMessage);
-    await db.addMessage(conversationId, 'assistant', assistantContent);
+    // Store proposals in message history so the agent remembers what it proposed
+    const savedContent = (proposals && proposals.length > 0)
+      ? assistantContent + buildProposalMemoryBlock(proposals)
+      : assistantContent;
+    await db.addMessage(conversationId, 'assistant', savedContent);
     if (priorUserCount === 1 && userMessage.length > 10) {
       const title = userMessage.slice(0, 60).trim();
       db.setConversationTitle(conversationId, title).catch(() => {});
@@ -578,12 +606,14 @@ export async function runAgentContinue(
   const route = detectRoute(userMessage, historyForAgent, domains);
 
   let assistantContent: string;
+  let proposals2: Proposal[] | undefined;
   const registryAgent2 = getAgent(route);
   if (registryAgent2) {
     const { content: agentContent2, toolCalls: agentToolCalls2 } = await registryAgent2.run(ctx, historyForAgent, userMessage, env);
     assistantContent = agentContent2 || (agentToolCalls2.length > 0
       ? "I've prepared some proposals for your review below."
       : agentContent2);
+    proposals2 = buildProposals(agentToolCalls2, orgId);
   } else {
   switch (route) {
     default: {
@@ -602,7 +632,15 @@ export async function runAgentContinue(
   } // end else (registry agent)
 
   if (!assistantContent) throw new Error('Empty response from AI');
-  await db.addMessage(conversationId, 'assistant', assistantContent);
+  const savedContent2 = (proposals2 && proposals2.length > 0)
+    ? assistantContent + buildProposalMemoryBlock(proposals2)
+    : assistantContent;
+  await db.addMessage(conversationId, 'assistant', savedContent2);
 
-  return { conversation_id: conversationId, content: assistantContent, role: 'assistant' };
+  return {
+    conversation_id: conversationId,
+    content: assistantContent,
+    role: 'assistant',
+    proposals: proposals2 && proposals2.length > 0 ? proposals2 : undefined,
+  };
 }
