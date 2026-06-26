@@ -3,7 +3,6 @@ import { callOpenAIText, callOpenAIWithTools } from '../tools/openai';
 import type { Env, ChatRequest, ChatResponse, CompanyContext, ChatMessage, Proposal } from '../types';
 import { PROPOSAL_TOOLS } from '../tools/proposalTools';
 import { buildProposals } from './proposalBuilder';
-import { runStrategyFoundationAgent } from './strategyFoundationAgent';
 import { AGENTS, getAgent } from './registry';
 
 // ── Block ID → label ──────────────────────────────────────────────────────────
@@ -355,17 +354,40 @@ Draft-first principle: always propose — never write autonomously.
 // Rule: end with "Are you ready to begin?" — no strategy content yet.
 
 function buildWelcomePrompt(ctx: CompanyContext, userName: string | null): string {
-  const firstName = userName ? userName.split(' ')[0] : 'there';
+  const firstName = userName?.split(' ')[0] ?? 'there';
+  const isOnboarding =
+    !ctx.mission &&
+    !ctx.vision &&
+    !ctx.long_term_ambition &&
+    ctx.strategic_goals.length === 0 &&
+    ctx.objectives.length === 0;
 
-  return `Generate Phase 1 Message 1 of the OrchestrA welcome for ${firstName} at ${ctx.name}.
+  if (isOnboarding) {
+    // Original onboarding welcome
+    return `Generate a warm, professional onboarding welcome message for ${firstName} who is starting their strategy journey on OrchestrA Strategy.
+Open with "Hi ${firstName}! Welcome to OrchestrA Strategy."
+Briefly explain what OrchestrA does (1-2 sentences).
+Ask what strategic challenge or priority they want to tackle first.
+Keep it to 4-6 sentences. Do NOT enumerate platform features. Do NOT say "Are you ready to begin?" or any similar closing question.
+Tone: warm, confident advisor.`;
+  }
 
-<rules>
-<rule id="opening">First line: "Hi ${firstName}," — new paragraph — "Welcome to OrchestrA Strategy."</rule>
-<rule id="no_data_enumeration">Do NOT mention specific company data (goals, challenges, OKRs, KPIs, financial figures). Only acknowledge that onboarding inputs were processed and the workspace is ready. Reason: enumerating data in the first message feels presumptuous before trust is established.</rule>
-<rule id="platform_frame">One sentence: OrchestrA is an AI-powered strategy-to-execution platform. Co-pilot role. Mention data integration capability (QuickBooks, Xero, NetSuite, etc.) briefly.</rule>
-<rule id="closing">End with exactly: "Are you ready to begin?" Do not add paths, modules, or analysis. Reason: this is the structural first message — the user must reply before Message 2.</rule>
-<rule id="length">5–8 sentences. Warm, direct, no flattery. No bullet lists.</rule>
-</rules>`;
+  // Returning user — reference what they've built
+  const hasMission = !!(ctx.mission || ctx.vision || ctx.long_term_ambition);
+  const hasGoals = ctx.strategic_goals.length > 0;
+  const hasOkrs = ctx.objectives.length > 0;
+
+  const contextSummary: string[] = [];
+  if (hasMission) contextSummary.push('you have a defined mission/vision');
+  if (hasGoals) contextSummary.push(`${ctx.strategic_goals.length} strategic goal${ctx.strategic_goals.length > 1 ? 's' : ''}`);
+  if (hasOkrs) contextSummary.push(`${ctx.objectives.length} active OKR${ctx.objectives.length > 1 ? 's' : ''}`);
+
+  return `Generate a concise, warm returning-user greeting for ${firstName}, an OrchestrA user coming back to continue their strategy work.
+Context about their platform: ${contextSummary.join(', ')}.
+Open with a brief, natural greeting (NOT "Welcome to OrchestrA Strategy" — they are not new).
+Reference 1-2 things they have built to show you know their context.
+Ask what they want to work on today or suggest the most obvious next step based on what they have vs. what is missing.
+Keep it to 3-4 sentences. Tone: trusted advisor picking up where you left off.`;
 }
 
 // ── Phase 1 Message 2 — platform orientation (scripted, no AI needed) ─────────
@@ -475,12 +497,11 @@ export async function runCoachAgent(req: ChatRequest, env: Env): Promise<ChatRes
 
     const registryAgent = getAgent(route);
     if (registryAgent) {
-      assistantContent = await registryAgent.run(ctx, history, userMessage, env);
+      const { content: agentContent, toolCalls: agentToolCalls } = await registryAgent.run(ctx, history, userMessage, env);
+      assistantContent = agentContent;
+      proposals = buildProposals(agentToolCalls, req.org_id);
     } else {
     switch (route) {
-      case 'strategy-foundation':
-        assistantContent = await runStrategyFoundationAgent(ctx, history, userMessage, env);
-        break;
       default: {
         // Supervisor handles general guidance, cross-domain questions, navigation
         const systemPrompt = buildSystemPrompt(ctx, history.length);
@@ -557,12 +578,10 @@ export async function runAgentContinue(
   let assistantContent: string;
   const registryAgent2 = getAgent(route);
   if (registryAgent2) {
-    assistantContent = await registryAgent2.run(ctx, historyForAgent, userMessage, env);
+    const { content: agentContent2 } = await registryAgent2.run(ctx, historyForAgent, userMessage, env);
+    assistantContent = agentContent2;
   } else {
   switch (route) {
-    case 'strategy-foundation':
-      assistantContent = await runStrategyFoundationAgent(ctx, historyForAgent, userMessage, env);
-      break;
     default: {
       const systemPrompt = buildSystemPrompt(ctx, history.length);
       const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [

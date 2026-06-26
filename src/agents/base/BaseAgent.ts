@@ -1,7 +1,9 @@
-import { callOpenAIText } from '../../tools/openai';
+import { callOpenAIWithTools } from '../../tools/openai';
+import type { ToolCall } from '../../tools/openai';
 import { retrieveKnowledge, captureMemory } from '../../knowledge/retrieval';
 import type { Env, CompanyContext, ChatMessage, AgentKnowledgeConfig, KnowledgeContext } from '../../types';
 import type { RoutingConfig } from './types';
+import { PROPOSAL_TOOLS } from '../../tools/proposalTools';
 
 export abstract class BaseAgent {
   abstract readonly agentId: string;
@@ -27,7 +29,7 @@ export abstract class BaseAgent {
     history: ChatMessage[],
     userMessage: string,
     env: Env,
-  ): Promise<string> {
+  ): Promise<{ content: string; toolCalls: ToolCall[] }> {
     const phase = this.detectPhase(history, userMessage);
 
     const knowledge = await retrieveKnowledge({
@@ -49,13 +51,13 @@ export abstract class BaseAgent {
       { role: 'user', content: userMessage },
     ];
 
-    const { content } = await callOpenAIText(env.OPENAI_API_KEY, messages, 950);
+    const { content, toolCalls } = await callOpenAIWithTools(env.OPENAI_API_KEY, messages, PROPOSAL_TOOLS, 950);
 
-    if (!content) throw new Error(`Empty response from ${this.agentId}`);
+    if (!content && toolCalls.length === 0) throw new Error(`Empty response from ${this.agentId}`);
 
     captureMemory({ agentId: this.agentId, orgId: ctx.id, userMessage, assistantResponse: content, env }).catch(() => {});
 
-    return content;
+    return { content, toolCalls };
   }
 
   /**

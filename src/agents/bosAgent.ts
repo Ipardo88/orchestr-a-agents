@@ -22,6 +22,12 @@ export class BosAgent extends BaseAgent {
       'okr|objective|key result': ['okr-methodology'],
       'kpi|metric|threshold': ['kpi-design'],
       'capability': ['capability-mapping'],
+      'clarity.compass|3.year target|core values|strategic anchor|company purpose': ['clarity-compass'],
+      'value engine|growth engine|fulfillment engine|innovation engine': ['value-engines'],
+      'playbook|standard operating|sop|process library': ['playbook-library'],
+      'north star|evergreen metric|company scorecard|weekly scorecard': ['company-scorecard'],
+      'meeting rhythm|weekly meeting|quarterly sprint|annual plan|90.day sprint|scalable planning': ['meeting-rhythm'],
+      'team canvas|high.output team|team design|span of control|role design|cab framework': ['high-output-team'],
     },
     topK: 5,
   };
@@ -211,7 +217,18 @@ Examples:
 - "**Next:** Score the NRR KPI: is the 115% target realistic given the current 109%? What's your amber threshold?"
 
 Never end without a **Next:** line.
-</active_directive>`);
+</active_directive>
+
+<proposal_capability>
+You can propose changes to the OKR/BOS module using tool calls. Use proposal tools when:
+- The user confirms they want to create an objective or key result ("sounds good", "yes", "let's do it", "perfect")
+- You have all the required information (title, level, cycle dates, metrics)
+- Multiple confirmations have been given across the conversation
+
+ALWAYS explain your proposals in text first, then make the tool calls.
+Use propose_objective for each OKR Objective, then propose_key_result for each Key Result (reference the objective by its 0-based index).
+Draft-first principle: always propose — never write autonomously.
+</proposal_capability>`);
 
   return lines.join('\n');
 }
@@ -223,5 +240,6 @@ export async function runBosAgent(
   userMessage: string,
   env: Env,
 ): Promise<string> {
-  return new BosAgent().run(ctx, history, userMessage, env);
+  const { content } = await new BosAgent().run(ctx, history, userMessage, env);
+  return content;
 }
