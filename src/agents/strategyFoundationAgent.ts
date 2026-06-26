@@ -1,5 +1,6 @@
-import { callOpenAIText } from '../tools/openai';
-import type { Env, CompanyContext, ChatMessage } from '../types';
+import { BaseAgent } from './base/BaseAgent';
+import type { RoutingConfig } from './base/types';
+import type { CompanyContext, ChatMessage, AgentKnowledgeConfig, KnowledgeContext } from '../types';
 
 // ── Strategy Foundation Agent ─────────────────────────────────────────────────
 // Guides the user through three sub-phases in strict order:
@@ -9,25 +10,62 @@ import type { Env, CompanyContext, ChatMessage } from '../types';
 //
 // Coaching approach: Socratic. Ask one question at a time.
 // Never generate strategy FOR the user — coach them to discover it themselves.
-// Reflect what you hear, ask for confirmation before advancing.
 
-function buildStrategyFoundationPrompt(ctx: CompanyContext): string {
+export class StrategyFoundationAgent extends BaseAgent {
+  readonly agentId = 'strategy-foundation';
+  readonly description = 'Strategy Foundation Coach — Purpose, Vision, Strategic Goals';
+
+  readonly knowledgeConfig: AgentKnowledgeConfig = {
+    phaseTopics: {
+      default: ['purpose-design', 'vision-design', 'strategic-goals-methodology'],
+
+      // Phase 3A — Purpose
+      'purpose|mission|why.exist|golden.circle|why|core.values|reason.for.being':
+        ['purpose-design'],
+
+      // Phase 3B — Vision
+      'vision|bhag|3.year|5.year|10.year|future|where.*heading|long.term|ambition|picture':
+        ['vision-design'],
+
+      // Phase 3C — Strategic Goals
+      'strategic.goal|goal|objective|target|measurable|outcome|milestone|priority|initiative':
+        ['strategic-goals-methodology'],
+    },
+    topK: 4,
+  };
+
+  readonly routing: RoutingConfig = {
+    routingSignals: /\bpurpose\b|why\s+(?:we\s+)?exist|company\s+mission|\bvision\b|bhag|strategic\s+goals?|foundation|long[\s-]term\s+ambition|where\s+(?:we'?re?\s+)?heading|strategy\s+foundation/i,
+    stickySignals: /\bpurpose\b|\bvision\b|strategic\s+goals?|foundation|mission/i,
+    domainKey: 'strategy-foundation',
+  };
+
+  buildSystemPrompt(ctx: CompanyContext, knowledge: KnowledgeContext, _history: ChatMessage[]): string {
+    const knowledgeBlock = this.formatKnowledge(knowledge);
+    return buildStrategyFoundationContext(ctx) + (knowledgeBlock ? `\n\n${knowledgeBlock}` : '');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Prompt builder (private to this module)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function buildStrategyFoundationContext(ctx: CompanyContext): string {
   const lines: string[] = [];
 
-  // ── Existing company data (what's already in the platform) ─────────────────
   lines.push('<company_context>');
   lines.push(`Company: ${ctx.name}`);
-  if (ctx.industry)           lines.push(`Industry: ${ctx.industry}`);
-  if (ctx.stage)              lines.push(`Stage: ${ctx.stage}`);
+  if (ctx.industry)            lines.push(`Industry: ${ctx.industry}`);
+  if (ctx.stage)               lines.push(`Stage: ${ctx.stage}`);
   if (ctx.business_model_type) lines.push(`Business model: ${ctx.business_model_type}`);
-  if (ctx.pains.length)       lines.push(`Stated challenges: ${ctx.pains.join('; ')}`);
-  if (ctx.gains.length)       lines.push(`Stated priorities: ${ctx.gains.join('; ')}`);
+  if (ctx.pains.length)        lines.push(`Stated challenges: ${ctx.pains.join('; ')}`);
+  if (ctx.gains.length)        lines.push(`Stated priorities: ${ctx.gains.join('; ')}`);
 
   lines.push('');
   lines.push('What is already defined in Strategy Foundation:');
-  if (ctx.mission)              lines.push(`  Mission: ${ctx.mission}`);
-  if (ctx.vision)               lines.push(`  Vision: ${ctx.vision}`);
-  if (ctx.long_term_ambition)   lines.push(`  Long-term ambition: ${ctx.long_term_ambition}`);
+  if (ctx.mission)            lines.push(`  Mission: ${ctx.mission}`);
+  if (ctx.vision)             lines.push(`  Vision: ${ctx.vision}`);
+  if (ctx.long_term_ambition) lines.push(`  Long-term ambition: ${ctx.long_term_ambition}`);
   if (ctx.strategic_goals.length) {
     lines.push('  Strategic Goals:');
     ctx.strategic_goals.forEach(g =>
@@ -44,7 +82,6 @@ function buildStrategyFoundationPrompt(ctx: CompanyContext): string {
   }
   lines.push('</company_context>');
 
-  // ── Agent role + methodology ────────────────────────────────────────────────
   lines.push(`
 <role>
 You are the Strategy Foundation Coach — a specialist agent in the OrchestrA multi-agent system. Your job is to guide the user through building the strategic foundation of their business: Purpose, Vision, and Strategic Goals. These three elements are the bedrock that all other platform work — business model, execution, financial strategy — builds on.
@@ -55,7 +92,9 @@ You do not generate strategy FOR the user. You coach them to discover it through
 <methodology>
 Work through three sub-phases in this exact order. Do not skip ahead.
 
+───────────────────────────────────────────────────────────────────────────────
 SUB-PHASE 3A — PURPOSE
+───────────────────────────────────────────────────────────────────────────────
 What: Why does this business exist beyond making money? A single sentence the owner could say at a Monday morning meeting.
 Good Purpose: specific (can't be cut-pasted to a competitor), honest (owner believes it), activating (shapes real decisions).
 
@@ -73,7 +112,9 @@ Quality bar before moving to Vision:
 - User explicitly confirmed it
 - Would shape at least one real decision
 
+───────────────────────────────────────────────────────────────────────────────
 SUB-PHASE 3B — VISION
+───────────────────────────────────────────────────────────────────────────────
 What: A clear picture of the business at a chosen future point — vivid enough the user could recognize it.
 Good Vision: specific time horizon, tangible elements (size/position/capability/team), stretch but credible.
 
@@ -81,7 +122,7 @@ How to coach it:
 1. Choose the horizon first: "Three years is concrete, ten is bold but fuzzy, five is the usual sweet spot. What feels right for where [company] is now?"
 2. Bridge from Purpose: "Given [Purpose] — what does [company] look like in [N] years that isn't true today?"
 3. Pull on threads to get concrete: size, market position, capabilities, customer mix, team structure. Pick the dimension most relevant to their goals.
-4. Surface the strategic tension when it appears. Examples: "You want 3x revenue AND margin improvement — those can pull in opposite directions. Which wins if you have to choose?" Do NOT resolve it. Make them sit with it.
+4. Surface the strategic tension when it appears. Do NOT resolve it. Make them sit with it.
 5. Co-write 2–4 sentences. Read back. Confirm. Lock.
 
 Quality bar before moving to Goals:
@@ -90,14 +131,16 @@ Quality bar before moving to Goals:
 - In tension with at least one current reality
 - User confirmed
 
+───────────────────────────────────────────────────────────────────────────────
 SUB-PHASE 3C — STRATEGIC GOALS
+───────────────────────────────────────────────────────────────────────────────
 What: 3–5 measurable outcomes that, if achieved, make the Vision substantially real.
 NOT OKRs (those belong in the Business OS). These are board-level strategic goals.
 
 How to coach it:
 1. Bridge: "Now we connect Vision to the next layer — 3 to 5 outcomes that, if true in [N] years, mean you got there."
 2. Ask them to brainstorm freely first. Capture everything.
-3. Help cluster and reduce to 3–5. Aim for balance: financial outcome, customer/market position, capability/operating, optionality. If all goals are financial, push: "What about the capability side — what does [company] need to be ABLE to do to hit these numbers?"
+3. Help cluster and reduce to 3–5. Aim for balance: financial outcome, customer/market position, capability/operating, optionality.
 4. Sharpen each: specific measure, target value, time horizon.
 5. Sanity check as a set: Do they collectively get to the Vision? Are any in conflict?
 6. Lock.
@@ -133,29 +176,4 @@ Never end without a **Next:** line.
 </active_directive>`);
 
   return lines.join('\n');
-}
-
-export async function runStrategyFoundationAgent(
-  ctx: CompanyContext,
-  history: ChatMessage[],
-  userMessage: string,
-  env: Env,
-): Promise<string> {
-  const systemPrompt = buildStrategyFoundationPrompt(ctx);
-
-  const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-    { role: 'system', content: systemPrompt },
-    ...history
-      .filter(m => m.role !== 'tool' && m.content)
-      .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content as string })),
-    { role: 'user', content: userMessage },
-  ];
-
-  const { content } = await callOpenAIText(
-    env.OPENAI_API_KEY,
-    messages,
-    900,
-  );
-
-  return content;
 }

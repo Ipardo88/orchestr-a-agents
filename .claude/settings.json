@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__plugin_claude-mem_mcp-search__search",
+      "mcp__plugin_claude-mem_mcp-search__get_observations",
+      "Bash(git -C \"c:/Users/ivanp/Documents/OrchestrA-Strategy/orchestr-a-agents\" show --stat a942ffe)",
+      "PowerShell(winget install --id poppler.poppler --source winget --accept-package-agreements --accept-source-agreements)",
+      "PowerShell(winget search poppler)",
+      "PowerShell(winget install --id oschwartz10612.Poppler --source winget --accept-package-agreements --accept-source-agreements)",
+      "Bash(/c/Users/ivanp/AppData/Local/Microsoft/WinGet/Packages/oschwartz10612.Poppler_Microsoft.Winget.Source_8wekyb3d8bbwe/poppler-25.07.0/Library/bin/pdftotext.exe 'C:/Users/ivanp/Documents/OrchestrA-Strategy/orchestr-a-agents/knowledge-source/Strategy-Foundations/Vision and Mission Statements - A Roadmap.pdf' -)",
+      "Bash(/c/Users/ivanp/AppData/Local/Microsoft/WinGet/Packages/oschwartz10612.Poppler_Microsoft.Winget.Source_8wekyb3d8bbwe/poppler-25.07.0/Library/bin/pdftotext.exe C:/Users/ivanp/Documents/OrchestrA-Strategy/orchestr-a-agents/knowledge-source/Business-Models/reinventing-your-business-model.pdf -)",
+      "Bash(/c/Users/ivanp/AppData/Local/Microsoft/WinGet/Packages/oschwartz10612.Poppler_Microsoft.Winget.Source_8wekyb3d8bbwe/poppler-25.07.0/Library/bin/pdfinfo.exe 'C:/Users/ivanp/Documents/OrchestrA-Strategy/orchestr-a-agents/knowledge-source/Business-Models/Business Model Generation.pdf')",
+      "Bash(/c/Users/ivanp/AppData/Local/Microsoft/WinGet/Packages/oschwartz10612.Poppler_Microsoft.Winget.Source_8wekyb3d8bbwe/poppler-25.07.0/Library/bin/pdftotext.exe 'C:/Users/ivanp/Documents/OrchestrA-Strategy/orchestr-a-agents/knowledge-source/Business-Models/Business Model Generation.pdf' -f 14 -l 100 -)",
+      "PowerShell(New-Item -ItemType Directory -Path \"C:\\\\Users\\\\ivanp\\\\Documents\\\\OrchestrA-Strategy\\\\orchestr-a-agents\\\\src\\\\content\\\\strategy-foundation\" -Force)",
+      "PowerShell(New-Item -ItemType Directory -Path \"C:\\\\Users\\\\ivanp\\\\Documents\\\\OrchestrA-Strategy\\\\orchestr-a-agents\\\\src\\\\content\\\\business-model\" -Force)",
+      "Bash(/c/Users/ivanp/AppData/Local/Microsoft/WinGet/Packages/oschwartz10612.Poppler_Microsoft.Winget.Source_8wekyb3d8bbwe/poppler-25.07.0/Library/bin/pdftotext.exe C:/Users/ivanp/Documents/OrchestrA-Strategy/orchestr-a-agents/knowledge-source/Business-Models/Quick-Reference-Guide-Odyssey-3.14.pdf -)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\ivanp\\\\Documents\\\\OrchestrA-Strategy\\\\orchestr-a-agents\\\\src\\\\content\\\\strategy-foundation\\\\\" | ForEach-Object { $lines = \\(Get-Content $_.FullName | Measure-Object -Line\\).Lines; Write-Output \"$\\($_.Name\\): $lines lines, $\\($_.Length\\) bytes\" })",
+      "WebFetch(domain:boardmix.com)",
+      "WebFetch(domain:www.strategyzer.com)",
+      "WebFetch(domain:vizologi.com)",
+      "PowerShell($ref = \\(Get-Content \"C:\\\\Users\\\\ivanp\\\\Documents\\\\OrchestrA-Strategy\\\\orchestr-a-agents\\\\src\\\\content\\\\bos\\\\high-output-team.md\" | Measure-Object -Line\\).Lines; $refBytes = \\(Get-Item \"C:\\\\Users\\\\ivanp\\\\Documents\\\\OrchestrA-Strategy\\\\orchestr-a-agents\\\\src\\\\content\\\\bos\\\\high-output-team.md\"\\).Length; Write-Output \"high-output-team.md: $ref lines, $refBytes bytes\")",
+      "PowerShell(winget install --id Gyan.FFmpeg --silent --accept-package-agreements --accept-source-agreements 2>&1)",
+      "PowerShell(Tail -5)",
+      "PowerShell(python -c \"import sys; print\\(sys.executable\\)\")",
+      "PowerShell(pip --version)",
+      "Read(//c/Users/ivanp/.claude/**)",
+      "PowerShell(python -c \"import yt_dlp, whisper, groq; print\\('yt-dlp', yt_dlp.version.__version__\\); print\\('whisper OK'\\); print\\('groq OK'\\)\")",
+      "Bash(node node_modules/.bin/wrangler secret put FRED_API_KEY)",
+      "Bash(WORKER_URL=\"https://orchestr-a-agents.strathubplatform.workers.dev\" ADMIN_SECRET=\"orchestr-a-admin-2026-XYZ\" bash src/content/seed.sh)"
+    ]
+  }
+}
