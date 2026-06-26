@@ -498,7 +498,9 @@ export async function runCoachAgent(req: ChatRequest, env: Env): Promise<ChatRes
     const registryAgent = getAgent(route);
     if (registryAgent) {
       const { content: agentContent, toolCalls: agentToolCalls } = await registryAgent.run(ctx, history, userMessage, env);
-      assistantContent = agentContent;
+      assistantContent = agentContent || (agentToolCalls.length > 0
+        ? "I've prepared some proposals for your review below."
+        : agentContent);
       proposals = buildProposals(agentToolCalls, req.org_id);
     } else {
     switch (route) {
@@ -578,8 +580,10 @@ export async function runAgentContinue(
   let assistantContent: string;
   const registryAgent2 = getAgent(route);
   if (registryAgent2) {
-    const { content: agentContent2 } = await registryAgent2.run(ctx, historyForAgent, userMessage, env);
-    assistantContent = agentContent2;
+    const { content: agentContent2, toolCalls: agentToolCalls2 } = await registryAgent2.run(ctx, historyForAgent, userMessage, env);
+    assistantContent = agentContent2 || (agentToolCalls2.length > 0
+      ? "I've prepared some proposals for your review below."
+      : agentContent2);
   } else {
   switch (route) {
     default: {
