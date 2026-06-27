@@ -1,11 +1,12 @@
 """
-NexStrat Competitive Intelligence — Azure OpenAI Vision Analysis
-================================================================
+NexStrat Competitive Intelligence — OpenAI Vision Analysis
+===========================================================
 Extracts frames from the silent NexStrat demo video and sends them to
-Azure OpenAI GPT-4o-mini vision for competitive analysis.
+OpenAI GPT-4o-mini vision for competitive analysis.
 
 Usage:
-    python run_nexstrat_vision.py
+    OPENAI_API_KEY=sk-... python run_nexstrat_vision.py
+    (or set OPENAI_API_KEY in your environment / .dev.vars)
 
 Output:
     src/content/strategy-foundation/nexstrat-competitive-intel.md
@@ -26,14 +27,31 @@ VIDEO_PATH   = r"C:\Users\ivanp\Downloads\NexStrat-demo.mp4"
 OUTPUT_MD    = Path(__file__).parent.parent.parent / "src" / "content" / "strategy-foundation" / "nexstrat-competitive-intel.md"
 FRAME_DIR    = Path(tempfile.gettempdir()) / "nexstrat_frames"
 
-AZURE_ENDPOINT   = "https://ei-openai-eastus.openai.azure.com/"
-AZURE_API_KEY    = "8VpGF2ltBBP0ApKY9nGxgkuS90KLKZxxpSqE4rXDPPYRjIlS8kaAJQQJ99BBACYeBjFXJ3w3AAABACOGjVt7"
-AZURE_DEPLOYMENT = "gpt-4o-mini"
-AZURE_API_VER    = "2024-10-21"
+OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+OPENAI_MODEL   = "gpt-4o-mini"
 
-FRAME_INTERVAL   = 3   # extract 1 frame every N seconds
-MAX_FRAMES       = 40  # cap to keep token cost reasonable
-FRAME_WIDTH      = 768  # resize width for smaller payloads
+FRAME_INTERVAL = 3   # extract 1 frame every N seconds
+MAX_FRAMES     = 40  # cap to keep token cost reasonable
+FRAME_WIDTH    = 768  # resize width for smaller payloads
+
+
+def _load_openai_key() -> str:
+    """Load OPENAI_API_KEY from environment or .dev.vars file."""
+    key = os.environ.get("OPENAI_API_KEY", "")
+    if key:
+        return key
+    # Fall back to .dev.vars in the repo root
+    dev_vars = Path(__file__).parent.parent.parent / ".dev.vars"
+    if dev_vars.exists():
+        with open(dev_vars, encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("OPENAI_API_KEY="):
+                    return line.split("=", 1)[1].strip().strip('"').strip("'")
+    raise RuntimeError(
+        "OPENAI_API_KEY not found. Set it in your environment or .dev.vars:\n"
+        "  OPENAI_API_KEY=sk-..."
+    )
 
 FFMPEG_CANDIDATES = [
     r"C:\Users\ivanp\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe",
@@ -103,11 +121,9 @@ def encode_frame(path: Path) -> str:
         return base64.b64encode(f.read()).decode("utf-8")
 
 
-def analyze_frame_batch(frames: list[Path], batch_index: int, total_batches: int) -> str:
-    """Send a batch of frames to Azure OpenAI vision and get analysis."""
+def analyze_frame_batch(frames: list[Path], batch_index: int, total_batches: int, api_key: str) -> str:
+    """Send a batch of frames to OpenAI vision and get analysis."""
     import urllib.request
-
-    url = f"{AZURE_ENDPOINT.rstrip('/')}/openai/deployments/{AZURE_DEPLOYMENT}/chat/completions?api-version={AZURE_API_VER}"
 
     content = []
     content.append({
@@ -128,7 +144,6 @@ Format your response as structured observations per screenshot."""
 
     for i, frame_path in enumerate(frames):
         b64 = encode_frame(frame_path)
-        # Calculate approximate timestamp
         frame_num = int(frame_path.stem.split("_")[1])
         timestamp = frame_num * FRAME_INTERVAL
         content.append({
@@ -144,29 +159,25 @@ Format your response as structured observations per screenshot."""
         })
 
     payload = {
-        "messages": [
-            {
-                "role": "user",
-                "content": content
-            }
-        ],
+        "model": OPENAI_MODEL,
+        "messages": [{"role": "user", "content": content}],
         "max_tokens": 2000,
         "temperature": 0.1,
     }
 
     data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
-        url,
-        data=data,
-        headers={
-            "Content-Type": "application/json",
-            "api-key": AZURE_API_KEY,
-        },
-        method="POST"
-    )
 
-    print(f"  Sending batch {batch_index+1}/{total_batches} ({len(frames)} frames) to Azure OpenAI...")
+    print(f"  Sending batch {batch_index+1}/{total_batches} ({len(frames)} frames) to OpenAI...")
     for attempt in range(5):
+        req = urllib.request.Request(
+            OPENAI_API_URL,
+            data=data,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+            },
+            method="POST"
+        )
         try:
             with urllib.request.urlopen(req, timeout=120) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
@@ -176,27 +187,20 @@ Format your response as structured observations per screenshot."""
                 wait = 30 * (attempt + 1)
                 print(f"  Rate limited. Waiting {wait}s before retry {attempt+1}/5...")
                 time.sleep(wait)
-                # Re-build request (body was consumed)
-                req = urllib.request.Request(
-                    url, data=data,
-                    headers={"Content-Type": "application/json", "api-key": AZURE_API_KEY},
-                    method="POST"
-                )
             else:
                 body = e.read().decode("utf-8", errors="replace")
                 raise RuntimeError(f"HTTP {e.code}: {body[:300]}") from e
     raise RuntimeError("Exceeded retry limit on rate limit")
 
 
-def synthesize_analysis(raw_observations: list[str]) -> str:
+def synthesize_analysis(raw_observations: list[str], api_key: str) -> str:
     """Ask GPT to synthesize all observations into a structured competitive intel doc."""
     import urllib.request
-
-    url = f"{AZURE_ENDPOINT.rstrip('/')}/openai/deployments/{AZURE_DEPLOYMENT}/chat/completions?api-version={AZURE_API_VER}"
 
     all_obs = "\n\n".join([f"=== BATCH {i+1} ===\n{obs}" for i, obs in enumerate(raw_observations)])
 
     payload = {
+        "model": OPENAI_MODEL,
         "messages": [
             {
                 "role": "system",
@@ -248,11 +252,11 @@ Where NexStrat may have advantages over OrchestrA. Features OrchestrA should wat
 
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
-        url,
+        OPENAI_API_URL,
         data=data,
         headers={
             "Content-Type": "application/json",
-            "api-key": AZURE_API_KEY,
+            "Authorization": f"Bearer {api_key}",
         },
         method="POST"
     )
@@ -271,9 +275,11 @@ def main():
         print(f"ERROR: Video not found at {VIDEO_PATH}")
         sys.exit(1)
 
+    api_key = _load_openai_key()
     print("=" * 60)
-    print("NexStrat Vision Analysis")
+    print("NexStrat Vision Analysis (OpenAI)")
     print("=" * 60)
+    print(f"Model: {OPENAI_MODEL}")
 
     ffmpeg = find_ffmpeg()
     print(f"Using ffmpeg: {ffmpeg}")
@@ -291,7 +297,7 @@ def main():
 
     raw_observations = []
     for i, batch in enumerate(batches):
-        obs = analyze_frame_batch(batch, i, len(batches))
+        obs = analyze_frame_batch(batch, i, len(batches), api_key)
         raw_observations.append(obs)
         print(f"  [OK] Batch {i+1} complete")
         if i < len(batches) - 1:
@@ -299,7 +305,7 @@ def main():
 
     # Synthesize
     print()
-    synthesis = synthesize_analysis(raw_observations)
+    synthesis = synthesize_analysis(raw_observations, api_key)
 
     # Write output
     OUTPUT_MD.parent.mkdir(parents=True, exist_ok=True)
