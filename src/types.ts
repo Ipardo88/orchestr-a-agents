@@ -107,6 +107,7 @@ export type ProposalEntity =
   | 'value_creation_target'
   | 'objective'
   | 'key_result'
+  | 'kpi'
   | 'organization'
   | 'business_model_canvas';
 

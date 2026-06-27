@@ -864,7 +864,75 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   }" | jq .
 echo ""
 
-echo "==> Seeding complete (47 topics across 4 agents)."
+# ============================================================
+# SIGNAL ORACLE AGENT (4 files — forecasting & time series)
+# ============================================================
+
+echo "[48/51] Ingesting signal-workflow.md..."
+CONTENT_SIG_WF=$(jq -Rs . < "$SCRIPT_DIR/signal-oracle/signal-workflow.md")
+curl -sf -X POST "$WORKER_URL/admin/ingest" \
+  -H "Content-Type: application/json" \
+  -H "x-admin-secret: $ADMIN_SECRET" \
+  -d "{
+    \"agentId\": \"signal-oracle\",
+    \"knowledgeType\": \"framework\",
+    \"topicSlug\": \"signal-workflow\",
+    \"source\": \"upload\",
+    \"sourcePath\": \"src/content/signal-oracle/signal-workflow.md\",
+    \"title\": \"Signal Oracle — Forecasting Workflow and forecast.py Usage\",
+    \"content\": $CONTENT_SIG_WF
+  }" | jq .
+echo ""
+
+echo "[49/51] Ingesting signal-model-selection.md..."
+CONTENT_SIG_MOD=$(jq -Rs . < "$SCRIPT_DIR/signal-oracle/signal-model-selection.md")
+curl -sf -X POST "$WORKER_URL/admin/ingest" \
+  -H "Content-Type: application/json" \
+  -H "x-admin-secret: $ADMIN_SECRET" \
+  -d "{
+    \"agentId\": \"signal-oracle\",
+    \"knowledgeType\": \"framework\",
+    \"topicSlug\": \"signal-model-selection\",
+    \"source\": \"upload\",
+    \"sourcePath\": \"src/content/signal-oracle/signal-model-selection.md\",
+    \"title\": \"Signal Oracle — Model Selection Guide and Quick Reference\",
+    \"content\": $CONTENT_SIG_MOD
+  }" | jq .
+echo ""
+
+echo "[50/51] Ingesting signal-energy-context.md..."
+CONTENT_SIG_EN=$(jq -Rs . < "$SCRIPT_DIR/signal-oracle/signal-energy-context.md")
+curl -sf -X POST "$WORKER_URL/admin/ingest" \
+  -H "Content-Type: application/json" \
+  -H "x-admin-secret: $ADMIN_SECRET" \
+  -d "{
+    \"agentId\": \"signal-oracle\",
+    \"knowledgeType\": \"framework\",
+    \"topicSlug\": \"signal-energy-context\",
+    \"source\": \"upload\",
+    \"sourcePath\": \"src/content/signal-oracle/signal-energy-context.md\",
+    \"title\": \"Signal Oracle — Energy & Business Forecasting Context (Sproule ERCE)\",
+    \"content\": $CONTENT_SIG_EN
+  }" | jq .
+echo ""
+
+echo "[51/51] Ingesting signal-evaluation.md..."
+CONTENT_SIG_EVAL=$(jq -Rs . < "$SCRIPT_DIR/signal-oracle/signal-evaluation.md")
+curl -sf -X POST "$WORKER_URL/admin/ingest" \
+  -H "Content-Type: application/json" \
+  -H "x-admin-secret: $ADMIN_SECRET" \
+  -d "{
+    \"agentId\": \"signal-oracle\",
+    \"knowledgeType\": \"framework\",
+    \"topicSlug\": \"signal-evaluation\",
+    \"source\": \"upload\",
+    \"sourcePath\": \"src/content/signal-oracle/signal-evaluation.md\",
+    \"title\": \"Signal Oracle — Forecast Evaluation, Metrics, and Failure Modes\",
+    \"content\": $CONTENT_SIG_EVAL
+  }" | jq .
+echo ""
+
+echo "==> Seeding complete (51 topics across 5 agents)."
 echo ""
 echo "Verify in Supabase SQL Editor:"
 echo "  SELECT agent_id, topic_slug, count(*) as chunks"
@@ -872,7 +940,7 @@ echo "  FROM knowledge_chunks"
 echo "  GROUP BY agent_id, topic_slug"
 echo "  ORDER BY agent_id, topic_slug;"
 echo ""
-echo "Expected: 47 topic_slugs across 4 agents:"
+echo "Expected: 51 topic_slugs across 5 agents:"
 echo "  bos (12): okr-methodology, kpi-design, capability-mapping, clarity-compass,"
 echo "    value-engines, playbook-library, company-scorecard, meeting-rhythm,"
 echo "    high-output-team, bos-scalable-os, bos-systems-building, orchestra-bos-platform"
@@ -886,3 +954,5 @@ echo "    bm-case-dong-energy, bm-case-aws, bm-case-lego, bm-case-disney,"
 echo "    vpc-explained, vpc-mastering, vpc-case-tesla"
 echo "  financial-intelligence (7): fin-three-statement, fin-valuation, fin-archetypes,"
 echo "    fin-cashflow, fin-budgeting, fin-scenarios, fin-best-practices"
+echo "  signal-oracle (4): signal-workflow, signal-model-selection,"
+echo "    signal-energy-context, signal-evaluation"

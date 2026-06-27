@@ -72,6 +72,7 @@ def _require(pkg: str, import_as: str = ""):
 # Path to ffmpeg — tries PATH first, then common install locations
 FFMPEG_CANDIDATES = [
     "ffmpeg",
+    r"C:\Users\ivanp\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe",
     r"C:\Users\ivanp\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-7.1.1-full_build\bin\ffmpeg.exe",
     r"C:\ProgramData\chocolatey\bin\ffmpeg.exe",
 ]
@@ -113,7 +114,12 @@ def _load_keys() -> dict:
     except ImportError:
         pass
 
-    for name in ("GROQ_API_KEY", "ANTHROPIC_API_KEY"):
+    secret_names = (
+        "GROQ_API_KEY", "ANTHROPIC_API_KEY",
+        "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY",
+        "AZURE_OPENAI_DEPLOYMENT", "AZURE_OPENAI_API_VERSION",
+    )
+    for name in secret_names:
         val = None
         if in_colab:
             try:
@@ -123,11 +129,29 @@ def _load_keys() -> dict:
                 pass
         keys[name] = val or os.getenv(name)
 
+    # Auto-load from .dev.vars if Azure keys are missing (local dev convenience)
+    if not keys.get("AZURE_OPENAI_API_KEY"):
+        dev_vars = os.path.join(_find_project_root(), ".dev.vars")
+        if os.path.exists(dev_vars):
+            with open(dev_vars, encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    line = line.strip()
+                    if "=" in line and not line.startswith("#"):
+                        k, _, v = line.partition("=")
+                        v = v.strip().strip('"').strip("'")
+                        if k in secret_names and not keys.get(k):
+                            keys[k] = v
+
+    has_groq  = bool(keys.get("GROQ_API_KEY"))
+    has_azure = bool(keys.get("AZURE_OPENAI_API_KEY") and keys.get("AZURE_OPENAI_ENDPOINT"))
     print("─" * 50)
     print("  API KEY STATUS")
     print("─" * 50)
-    print(f"  Groq (AI synthesis)    {'✓  Ready' if keys.get('GROQ_API_KEY') else '✗  Missing — add GROQ_API_KEY'}")
-    print(f"  Anthropic (frames)     {'✓  Ready' if keys.get('ANTHROPIC_API_KEY') else '○  Optional — for frame/slide analysis'}")
+    print(f"  Groq  (synthesis)      {'✓  Ready' if has_groq else '○  Not set'}")
+    print(f"  Azure OpenAI (synth.)  {'✓  Ready' if has_azure else '○  Not set'}")
+    print(f"  Anthropic (frames)     {'✓  Ready' if keys.get('ANTHROPIC_API_KEY') else '○  Optional'}")
+    if not has_groq and not has_azure:
+        print("  ✗  Need GROQ_API_KEY or AZURE_OPENAI_* for synthesis")
     print("─" * 50)
     return keys
 
@@ -349,6 +373,41 @@ def analyze_frames_with_claude(frame_paths: list, title: str, keys: dict) -> str
 # AI SYNTHESIS  →  structured knowledge MD
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _call_llm(system: str, prompt: str, keys: dict, max_tokens: int = 4500) -> str:
+    """Call Groq or Azure OpenAI, whichever is configured. Groq takes priority."""
+    if keys.get("GROQ_API_KEY"):
+        from groq import Groq
+        client = Groq(api_key=keys["GROQ_API_KEY"])
+        resp = client.chat.completions.create(
+            model=GROQ_MODEL, temperature=0.2, max_tokens=max_tokens,
+            messages=[{"role":"system","content":system},{"role":"user","content":prompt}],
+        )
+        return resp.choices[0].message.content
+
+    if keys.get("AZURE_OPENAI_API_KEY") and keys.get("AZURE_OPENAI_ENDPOINT"):
+        import urllib.request, json as _json
+        endpoint  = keys["AZURE_OPENAI_ENDPOINT"].rstrip("/")
+        deploy    = keys.get("AZURE_OPENAI_DEPLOYMENT", "gpt-4o-mini")
+        api_ver   = keys.get("AZURE_OPENAI_API_VERSION", "2024-10-21")
+        url       = f"{endpoint}/openai/deployments/{deploy}/chat/completions?api-version={api_ver}"
+        body      = _json.dumps({
+            "messages": [{"role":"system","content":system},{"role":"user","content":prompt}],
+            "temperature": 0.2,
+            "max_tokens": max_tokens,
+        }).encode()
+        req = urllib.request.Request(url, data=body, method="POST", headers={
+            "Content-Type": "application/json",
+            "api-key": keys["AZURE_OPENAI_API_KEY"],
+        })
+        with urllib.request.urlopen(req, timeout=120) as r:
+            data = _json.loads(r.read())
+        return data["choices"][0]["message"]["content"]
+
+    raise RuntimeError(
+        "No AI provider configured. Set GROQ_API_KEY or AZURE_OPENAI_* variables."
+    )
+
+
 def synthesize_knowledge(
     transcript: str,
     frame_notes: str,
@@ -360,10 +419,9 @@ def synthesize_knowledge(
     keys: dict,
 ) -> str:
     """
-    Use Groq to transform raw transcript + frame notes into a structured
-    knowledge Markdown document matching the OrchestrA content style.
+    Transform raw transcript + frame notes into a structured knowledge MD.
+    Uses Groq if available, falls back to Azure OpenAI.
     """
-    from groq import Groq
 
     agent_context = {
         "bos":                "business operating system, OKRs, KPIs, capability mapping, meeting rhythms, team design",
@@ -412,30 +470,19 @@ OUTPUT REQUIREMENTS:
         f"{visual_section}"
     )
 
-    client = Groq(api_key=keys["GROQ_API_KEY"])
-    print("  → AI synthesis with Groq ...")
+    provider = "Groq" if keys.get("GROQ_API_KEY") else "Azure OpenAI"
+    print(f"  → AI synthesis ({provider}) ...")
 
-    # If content is very long, use two-pass approach
+    # Two-pass for very long transcripts: outline then full synthesis
     if len(transcript) > MAX_TRANSCRIPT_CHARS:
-        # Pass 1: outline
-        outline_resp = client.chat.completions.create(
-            model=GROQ_MODEL, temperature=0.2, max_tokens=1000,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": f"First, give me a structured outline (H2 sections only, one line each) for a knowledge document on: {title}\n\nBased on this transcript beginning:\n{transcript[:20000]}"},
-            ]
+        outline = _call_llm(
+            system,
+            f"Give me a structured outline (H2 sections only, one line each) for: {title}\n\nTranscript start:\n{transcript[:20000]}",
+            keys, max_tokens=800,
         )
-        outline = outline_resp.choices[0].message.content
         prompt = prompt + f"\n\nUSE THIS OUTLINE STRUCTURE:\n{outline}"
 
-    resp = client.chat.completions.create(
-        model=GROQ_MODEL, temperature=0.2, max_tokens=4500,
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": prompt},
-        ]
-    )
-    md = resp.choices[0].message.content
+    md = _call_llm(system, prompt, keys, max_tokens=4500)
     print(f"  ✓  Knowledge document: {len(md):,} chars / ~{len(md.split())//100*100} words")
     return md
 
@@ -538,10 +585,12 @@ class VideoKnowledgeTool:
             print("  ffmpeg  ✗  not found — MP4 transcription unavailable")
         print("=" * 55 + "\n")
 
-        if not self.keys.get("GROQ_API_KEY"):
+        has_groq  = bool(self.keys.get("GROQ_API_KEY"))
+        has_azure = bool(self.keys.get("AZURE_OPENAI_API_KEY") and self.keys.get("AZURE_OPENAI_ENDPOINT"))
+        if not has_groq and not has_azure:
             raise RuntimeError(
-                "GROQ_API_KEY is required for AI synthesis.\n"
-                "Free key at: https://console.groq.com/"
+                "No AI provider found. Set GROQ_API_KEY (free: console.groq.com)\n"
+                "or ensure AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT are in .dev.vars"
             )
 
     def process(

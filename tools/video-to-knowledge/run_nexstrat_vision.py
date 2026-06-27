@@ -31,9 +31,9 @@ AZURE_API_KEY    = "8VpGF2ltBBP0ApKY9nGxgkuS90KLKZxxpSqE4rXDPPYRjIlS8kaAJQQJ99BB
 AZURE_DEPLOYMENT = "gpt-4o-mini"
 AZURE_API_VER    = "2024-10-21"
 
-FRAME_INTERVAL   = 8   # extract 1 frame every N seconds
+FRAME_INTERVAL   = 3   # extract 1 frame every N seconds
 MAX_FRAMES       = 40  # cap to keep token cost reasonable
-FRAME_WIDTH      = 1280  # resize width for smaller payloads
+FRAME_WIDTH      = 768  # resize width for smaller payloads
 
 FFMPEG_CANDIDATES = [
     r"C:\Users\ivanp\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe",
@@ -166,10 +166,26 @@ Format your response as structured observations per screenshot."""
     )
 
     print(f"  Sending batch {batch_index+1}/{total_batches} ({len(frames)} frames) to Azure OpenAI...")
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        result = json.loads(resp.read().decode("utf-8"))
-
-    return result["choices"][0]["message"]["content"]
+    for attempt in range(5):
+        try:
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+            return result["choices"][0]["message"]["content"]
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                wait = 30 * (attempt + 1)
+                print(f"  Rate limited. Waiting {wait}s before retry {attempt+1}/5...")
+                time.sleep(wait)
+                # Re-build request (body was consumed)
+                req = urllib.request.Request(
+                    url, data=data,
+                    headers={"Content-Type": "application/json", "api-key": AZURE_API_KEY},
+                    method="POST"
+                )
+            else:
+                body = e.read().decode("utf-8", errors="replace")
+                raise RuntimeError(f"HTTP {e.code}: {body[:300]}") from e
+    raise RuntimeError("Exceeded retry limit on rate limit")
 
 
 def synthesize_analysis(raw_observations: list[str]) -> str:
@@ -241,6 +257,8 @@ Where NexStrat may have advantages over OrchestrA. Features OrchestrA should wat
         method="POST"
     )
 
+    print("Waiting 20s before synthesis call...")
+    time.sleep(20)
     print("Synthesizing competitive intelligence document...")
     with urllib.request.urlopen(req, timeout=120) as resp:
         result = json.loads(resp.read().decode("utf-8"))
@@ -266,8 +284,8 @@ def main():
         print("ERROR: No frames extracted")
         sys.exit(1)
 
-    # Send in batches of 6 (vision models have limits)
-    BATCH_SIZE = 6
+    # Send in batches of 3 (stay under TPM limits)
+    BATCH_SIZE = 3
     batches = [frames[i:i+BATCH_SIZE] for i in range(0, len(frames), BATCH_SIZE)]
     print(f"\nProcessing {len(frames)} frames in {len(batches)} batches...")
 
@@ -275,9 +293,9 @@ def main():
     for i, batch in enumerate(batches):
         obs = analyze_frame_batch(batch, i, len(batches))
         raw_observations.append(obs)
-        print(f"  ✓ Batch {i+1} complete")
+        print(f"  [OK] Batch {i+1} complete")
         if i < len(batches) - 1:
-            time.sleep(2)  # brief pause between batches
+            time.sleep(15)  # pause between batches to avoid TPM limit
 
     # Synthesize
     print()
@@ -292,7 +310,7 @@ def main():
         for i, obs in enumerate(raw_observations):
             f.write(f"### Batch {i+1}\n\n{obs}\n\n")
 
-    print(f"\n✓ Output written to: {OUTPUT_MD}")
+    print(f"\n[DONE] Output written to: {OUTPUT_MD}")
     print(f"\nNext: seed this to the strategy-foundation agent:")
     print(f"  WORKER_URL=... ADMIN_SECRET=... bash src/content/seed_platform.sh")
     print(f"  (or add it to seed.sh with agentId: 'strategy-foundation')")
