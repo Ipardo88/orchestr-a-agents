@@ -52,6 +52,7 @@ export const PROPOSAL_TOOLS = [
           description: { type: 'string', description: 'Optional longer description of what success looks like' },
           cycle_start: { type: 'string', description: 'ISO date string e.g. 2026-01-01' },
           cycle_end: { type: 'string', description: 'ISO date string e.g. 2026-12-31' },
+          strategic_goal_id: { type: 'string', description: 'UUID of the strategic goal this objective cascades from. Use the ID shown next to the goal in the company context.' },
         },
         required: ['title', 'level'],
       },

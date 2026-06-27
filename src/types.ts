@@ -157,7 +157,7 @@ export interface CompanyContext {
   gains: string[];
 
   // Strategy Foundation
-  strategic_goals: Array<{ goal: string; category: string; timeframe: string | null }>;
+  strategic_goals: Array<{ id: string; goal: string; category: string; timeframe: string | null }>;
   value_creation_targets: Array<{ metric: string; target_value: string; current_value: string | null }>;
 
   // Business Model Canvas (block id → text content)

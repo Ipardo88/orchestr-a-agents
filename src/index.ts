@@ -271,6 +271,7 @@ export default {
                 description: payload.description ? String(payload.description) : undefined,
                 cycle_start: payload.cycle_start ? String(payload.cycle_start) : undefined,
                 cycle_end: payload.cycle_end ? String(payload.cycle_end) : undefined,
+                strategic_goal_id: payload.strategic_goal_id ? String(payload.strategic_goal_id) : undefined,
               });
               createdIds.set(id, dbId);
 

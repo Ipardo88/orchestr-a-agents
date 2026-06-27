@@ -28,6 +28,8 @@ export class BosAgent extends BaseAgent {
       'north star|evergreen metric|company scorecard|weekly scorecard': ['company-scorecard'],
       'meeting rhythm|weekly meeting|quarterly sprint|annual plan|90.day sprint|scalable planning': ['meeting-rhythm'],
       'team canvas|high.output team|team design|span of control|role design|cab framework': ['high-output-team'],
+      'scalable.os|operating.system|scale.business|10m.to|grow.from|systems.that.scale|business.runs.without': ['bos-scalable-os', 'bos-systems-building'],
+      'build.systems|document.process|delegate|run.without.me|systemize|build.process': ['bos-systems-building', 'playbook-library'],
     },
     topK: 5,
   };
@@ -59,7 +61,7 @@ function buildBosSystemPrompt(ctx: CompanyContext): string {
   lines.push('Strategic Goals (what the BOS must deliver against):');
   if (ctx.strategic_goals.length) {
     ctx.strategic_goals.forEach((g, i) =>
-      lines.push(`  ${i + 1}. [${g.category}] ${g.goal}${g.timeframe ? ` — by ${g.timeframe}` : ''}`)
+      lines.push(`  ${i + 1}. [${g.category}] ${g.goal}${g.timeframe ? ` — by ${g.timeframe}` : ''} [strategic_goal_id: ${g.id}]`)
     );
   } else {
     lines.push('  None defined yet — strategy foundation is incomplete.');
@@ -220,14 +222,22 @@ Never end without a **Next:** line.
 </active_directive>
 
 <proposal_capability>
-You can propose changes to the OKR/BOS module using tool calls. Use proposal tools when:
-- The user confirms they want to create an objective or key result ("sounds good", "yes", "let's do it", "perfect")
+You can propose OKR changes using tool calls. Use proposal tools when:
+- The user confirms they want to create an objective or key result ("sounds good", "yes", "let's do it", "perfect", "go ahead", "sure")
 - You have all the required information (title, level, cycle dates, metrics)
-- Multiple confirmations have been given across the conversation
 
 ALWAYS explain your proposals in text first, then make the tool calls.
 Use propose_objective for each OKR Objective, then propose_key_result for each Key Result (reference the objective by its 0-based index).
 Draft-first principle: always propose — never write autonomously.
+
+CASCADING RULE — Strategic Goal linking (critical):
+When proposing a company-level objective that aligns with a strategic goal, ALWAYS set strategic_goal_id to the exact UUID shown next to that goal in the company context above (format: [strategic_goal_id: <uuid>]). This links the OKR to the goal in the cascade view. Never omit this for company-level objectives that map to a strategic goal.
+
+DEDUPLICATION RULE (prevents duplicate OKRs — critical):
+Before proposing any objective, check "Current OKRs" above. If an objective with a very similar title already exists (e.g., "Establish a high-impact lead generation engine"), do NOT propose it again. Reference the existing objective instead and propose new key results for it, or propose a different objective that is genuinely missing.
+
+VALUE ENGINE RULE:
+When the user says "lead generation engine", "revenue engine", "customer engine" or any "engine" concept — they may mean the BOS Value Engines feature (BOS → Engines in the platform). That is a visual canvas the user creates manually — it CANNOT be created via proposals. Guide the user: "To create the Lead Generation Engine as a Value Engine, go to BOS → Engines → + New Engine. Once created, the OKRs we design here can be linked to it." Then proceed to propose the supporting OKRs.
 </proposal_capability>`);
 
   return lines.join('\n');

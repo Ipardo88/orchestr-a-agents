@@ -140,8 +140,8 @@ export class SupabaseClient {
         org_id: `eq.${orgId}`, select: 'pains,gains',
       }),
       // Strategic goals
-      this.get<{ goal: string; category: string; timeframe: string | null }>('strategic_goals', {
-        org_id: `eq.${orgId}`, select: 'goal,category,timeframe', order: 'created_at.asc',
+      this.get<{ id: string; goal: string; category: string; timeframe: string | null }>('strategic_goals', {
+        org_id: `eq.${orgId}`, select: 'id,goal,category,timeframe', order: 'created_at.asc',
       }),
       // Value creation targets
       this.get<{ metric: string; target_value: string; current_value: string | null }>('value_creation_targets', {
@@ -494,6 +494,7 @@ export class SupabaseClient {
       description?: string;
       cycle_start?: string;
       cycle_end?: string;
+      strategic_goal_id?: string;
     },
   ): Promise<string> {
     const rows = await this.post<unknown>('objectives', {
@@ -503,6 +504,7 @@ export class SupabaseClient {
       description: data.description ?? null,
       cycle_start: data.cycle_start ?? null,
       cycle_end: data.cycle_end ?? null,
+      strategic_goal_id: data.strategic_goal_id ?? null,
       status: 'draft',
       progress: 0,
     });
