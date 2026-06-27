@@ -30,6 +30,18 @@ export class StrategyFoundationAgent extends BaseAgent {
       // Phase 3C — Strategic Goals
       'strategic.goal|goal|objective|target|measurable|outcome|milestone|priority|initiative':
         ['strategic-goals-methodology'],
+
+      // What is strategy / strategy vs plan
+      'what.is.strategy|strategy.definition|plan.vs.strategy|plan.is.not|simple.strategy|strategy.simple':
+        ['what-is-strategy', 'plan-vs-strategy'],
+
+      // Platform navigation — Corporate Strategy module
+      'corporate.strategy|strategic.intent|portfolio|parenting|corporate.ambition|growth.strategy|corporate.development|capital.allocation|company.setup':
+        ['orchestra-corporate-strategy-platform', 'strategic-goals-methodology'],
+
+      // Platform navigation — where to find things
+      'where.*find|how.*navigate|which.*page|which.*module|where.*enter|where.*see|platform|navigation|sub.module':
+        ['orchestra-corporate-strategy-platform'],
     },
     topK: 4,
   };

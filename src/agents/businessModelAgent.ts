@@ -24,15 +24,15 @@ export class BusinessModelAgent extends BaseAgent {
 
       // Phase 4A — BMC construction
       'canvas|customer.segment|value.proposition|channel|revenue.model|key.activit|key.resource|key.partner|cost.structure|building.block':
-        ['business-model-canvas', 'business-model-examples'],
+        ['business-model-canvas', 'bm-visualizing-canvas', 'bm-idea-to-model', 'business-model-examples'],
 
       // Phase 4B — BMC assessment
       'assess|stress.test|vulnerabilit|weakness|strength|risk|score|disrupt':
-        ['bmc-assessment', 'business-model-examples'],
+        ['bmc-assessment', 'bm-numbers-improvement', 'business-model-examples'],
 
       // Phase 4C — PESTEL / environment
       'pestel|political|economic|social|technolog|environmental|legal|external.environment|market.force|industry.force|macro':
-        ['pestel-analysis', 'business-model-canvas'],
+        ['pestel-analysis', 'bm-navigating-environment', 'business-model-canvas'],
 
       // Phase 4D — Strategic choices / Playing to Win
       'playing.to.win|where.to.play|how.to.win|winning.aspiration|strategic.choice|capability|management.system':
@@ -40,7 +40,31 @@ export class BusinessModelAgent extends BaseAgent {
 
       // Odyssey 3.14 innovation directions
       'odyssey|innovat|reinvent|direction|value.architecture|profit.equation|value.curve|non.client|revenue.stream|supplementor':
-        ['odyssey-3-14', 'business-model-examples'],
+        ['odyssey-3-14', 'bm-competing', 'bm-designing'],
+
+      // Value Proposition Canvas
+      'value.proposition.canvas|vpc|customer.job|pain|gain|pain.reliever|gain.creator|job.to.be.done':
+        ['vpc-explained', 'vpc-mastering', 'business-model-canvas'],
+
+      // BMC prototyping / iteration
+      'prototype|iteration|test.model|pivot|experiment|business.model.test|proving':
+        ['bm-prototyping', 'bm-proving-model', 'bm-storytelling'],
+
+      // BM case studies
+      'case.stud|example|dong.energy|amazon|aws|lego|disney|tesla|how.company|real.world':
+        ['bm-case-dong-energy', 'bm-case-aws', 'bm-case-lego', 'bm-case-disney', 'vpc-case-tesla'],
+
+      // BM storytelling / pitch
+      'storytell|pitch|present|investor|narrative|tell.your.story|business.story':
+        ['bm-storytelling', 'bm-in-context'],
+
+      // Platform navigation — Business Strategy module
+      'business.strategy|design.business.strategy|playing.to.win.page|functional.strateg|partnership.strateg|pricing.strateg|map.business.model|assess.business.model|external.environment.page':
+        ['orchestra-business-model-platform', 'playing-to-win'],
+
+      // Platform navigation — where to find things
+      'where.*find|how.*navigate|which.*page|which.*module|where.*enter|where.*see|platform|navigation|sub.module':
+        ['orchestra-business-model-platform'],
     },
     topK: 5,
   };

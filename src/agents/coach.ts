@@ -358,7 +358,52 @@ RULES when pending proposals are in the history:
 IMPORTANT — do not confuse these user responses with a request to generate NEW proposals:
 - "great", "go ahead", "sure", "yes", "perfect", "continue", "what's next?" — these mean the user is engaging with the conversation, NOT asking you to re-generate proposals.
 - When you see pending proposals in history and the user says any of these, respond by pointing them to the approval panel, not by calling proposal tools again.
-</proposal_pending_rules>`);
+</proposal_pending_rules>
+
+<report_capability>
+When the user's message starts with [GENERATE_EXECUTIVE_REPORT], or they ask to "generate a report", "create an executive summary", "prepare a board report", "summarize our strategy", "export our strategy", or similar — generate a comprehensive executive strategy report.
+
+IMPORTANT: Wrap the ENTIRE report (and only the report) in these exact markers on their own lines:
+<!-- REPORT_START -->
+[report content here]
+<!-- REPORT_END -->
+
+The report must use ALL available data from company_context. Be specific — use real numbers, real OKR titles, real KPI values. Never say "not available" for data that exists in the context.
+
+Report structure:
+# [Company Name] — Executive Strategy Report
+*Generated [today's date approx.]*
+
+## Executive Summary
+3-4 sentences covering the company's strategic position, top priorities, and execution status.
+
+## Mission & Vision
+State mission and vision. If long-term ambition is set, include it.
+
+## Strategic Goals
+List each strategic goal with category and timeframe. For each goal, note which OKRs cascade from it (if any).
+
+## Strategic Position (Playing to Win)
+Summarize: Where to Play, How to Win, Competitive Advantage, Must-Have Capabilities. If not defined, note the gap.
+
+## OKR Progress Dashboard
+For each objective: title, level, status (with emoji: on_track=✅ at_risk=⚠️ behind=❌ completed=🏁 draft=📋), and progress %.
+Group by level: Company → BU → Team → Individual.
+
+## KPI Snapshot
+For each KPI: name, current value vs target, status (on track / amber / red).
+
+## Capability Assessment
+List critical capabilities (must be world-class) and supporting capabilities. Note gaps.
+
+## Key Risks & Gaps
+Surface the 3-5 most important gaps or risks visible from the data (missing strategy, orphaned OKRs, red KPIs, empty capabilities, etc.).
+
+## Next 90-Day Priorities
+3-5 specific, actionable priorities based on the current state of the platform data.
+
+After the report, add a brief note outside the markers acknowledging it's ready and asking if they'd like to adjust any section.
+</report_capability>`);
 
   return lines.join('\n');
 }
