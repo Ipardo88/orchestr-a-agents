@@ -1,4 +1,4 @@
-"""Retry the 2 jobs that hit the Azure OpenAI 429 rate limit."""
+"""Retry jobs that hit rate limits during synthesis."""
 import os, sys, time
 sys.path.insert(0, os.path.dirname(__file__))
 from VIDEO_INGESTION_TOOL import VideoKnowledgeTool
@@ -25,7 +25,7 @@ if __name__ == "__main__":
     results = []
     for i, job in enumerate(RETRY_JOBS):
         if i > 0:
-            print(f"  Waiting 30s to respect Azure rate limit ...")
+            print(f"  Waiting 30s between requests ...")
             time.sleep(30)
         results.append(tool.batch([job])[0])
 

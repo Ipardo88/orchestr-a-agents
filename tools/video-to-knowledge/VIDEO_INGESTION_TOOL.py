@@ -115,9 +115,7 @@ def _load_keys() -> dict:
         pass
 
     secret_names = (
-        "GROQ_API_KEY", "ANTHROPIC_API_KEY",
-        "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY",
-        "AZURE_OPENAI_DEPLOYMENT", "AZURE_OPENAI_API_VERSION",
+        "GROQ_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY",
     )
     for name in secret_names:
         val = None
@@ -129,8 +127,8 @@ def _load_keys() -> dict:
                 pass
         keys[name] = val or os.getenv(name)
 
-    # Auto-load from .dev.vars if Azure keys are missing (local dev convenience)
-    if not keys.get("AZURE_OPENAI_API_KEY"):
+    # Auto-load from .dev.vars if keys are missing (local dev convenience)
+    if not keys.get("GROQ_API_KEY") or not keys.get("OPENAI_API_KEY"):
         dev_vars = os.path.join(_find_project_root(), ".dev.vars")
         if os.path.exists(dev_vars):
             with open(dev_vars, encoding="utf-8", errors="ignore") as f:
@@ -142,16 +140,16 @@ def _load_keys() -> dict:
                         if k in secret_names and not keys.get(k):
                             keys[k] = v
 
-    has_groq  = bool(keys.get("GROQ_API_KEY"))
-    has_azure = bool(keys.get("AZURE_OPENAI_API_KEY") and keys.get("AZURE_OPENAI_ENDPOINT"))
+    has_groq   = bool(keys.get("GROQ_API_KEY"))
+    has_openai = bool(keys.get("OPENAI_API_KEY"))
     print("─" * 50)
     print("  API KEY STATUS")
     print("─" * 50)
-    print(f"  Groq  (synthesis)      {'✓  Ready' if has_groq else '○  Not set'}")
-    print(f"  Azure OpenAI (synth.)  {'✓  Ready' if has_azure else '○  Not set'}")
+    print(f"  Groq   (synthesis)     {'✓  Ready' if has_groq else '○  Not set'}")
+    print(f"  OpenAI (synthesis)     {'✓  Ready' if has_openai else '○  Not set'}")
     print(f"  Anthropic (frames)     {'✓  Ready' if keys.get('ANTHROPIC_API_KEY') else '○  Optional'}")
-    if not has_groq and not has_azure:
-        print("  ✗  Need GROQ_API_KEY or AZURE_OPENAI_* for synthesis")
+    if not has_groq and not has_openai:
+        print("  ✗  Need GROQ_API_KEY or OPENAI_API_KEY for synthesis")
     print("─" * 50)
     return keys
 
@@ -374,7 +372,7 @@ def analyze_frames_with_claude(frame_paths: list, title: str, keys: dict) -> str
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _call_llm(system: str, prompt: str, keys: dict, max_tokens: int = 4500) -> str:
-    """Call Groq or Azure OpenAI, whichever is configured. Groq takes priority."""
+    """Call Groq or OpenAI, whichever is configured. Groq takes priority."""
     if keys.get("GROQ_API_KEY"):
         from groq import Groq
         client = Groq(api_key=keys["GROQ_API_KEY"])
@@ -384,27 +382,28 @@ def _call_llm(system: str, prompt: str, keys: dict, max_tokens: int = 4500) -> s
         )
         return resp.choices[0].message.content
 
-    if keys.get("AZURE_OPENAI_API_KEY") and keys.get("AZURE_OPENAI_ENDPOINT"):
+    if keys.get("OPENAI_API_KEY"):
         import urllib.request, json as _json
-        endpoint  = keys["AZURE_OPENAI_ENDPOINT"].rstrip("/")
-        deploy    = keys.get("AZURE_OPENAI_DEPLOYMENT", "gpt-4o-mini")
-        api_ver   = keys.get("AZURE_OPENAI_API_VERSION", "2024-10-21")
-        url       = f"{endpoint}/openai/deployments/{deploy}/chat/completions?api-version={api_ver}"
-        body      = _json.dumps({
+        body = _json.dumps({
+            "model": "gpt-4o-mini",
             "messages": [{"role":"system","content":system},{"role":"user","content":prompt}],
             "temperature": 0.2,
             "max_tokens": max_tokens,
         }).encode()
-        req = urllib.request.Request(url, data=body, method="POST", headers={
-            "Content-Type": "application/json",
-            "api-key": keys["AZURE_OPENAI_API_KEY"],
-        })
+        req = urllib.request.Request(
+            "https://api.openai.com/v1/chat/completions",
+            data=body, method="POST",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {keys['OPENAI_API_KEY']}",
+            },
+        )
         with urllib.request.urlopen(req, timeout=120) as r:
             data = _json.loads(r.read())
         return data["choices"][0]["message"]["content"]
 
     raise RuntimeError(
-        "No AI provider configured. Set GROQ_API_KEY or AZURE_OPENAI_* variables."
+        "No AI provider configured. Set GROQ_API_KEY or OPENAI_API_KEY."
     )
 
 
@@ -470,7 +469,7 @@ OUTPUT REQUIREMENTS:
         f"{visual_section}"
     )
 
-    provider = "Groq" if keys.get("GROQ_API_KEY") else "Azure OpenAI"
+    provider = "Groq" if keys.get("GROQ_API_KEY") else "OpenAI"
     print(f"  → AI synthesis ({provider}) ...")
 
     # Two-pass for very long transcripts: outline then full synthesis
@@ -585,12 +584,12 @@ class VideoKnowledgeTool:
             print("  ffmpeg  ✗  not found — MP4 transcription unavailable")
         print("=" * 55 + "\n")
 
-        has_groq  = bool(self.keys.get("GROQ_API_KEY"))
-        has_azure = bool(self.keys.get("AZURE_OPENAI_API_KEY") and self.keys.get("AZURE_OPENAI_ENDPOINT"))
-        if not has_groq and not has_azure:
+        has_groq   = bool(self.keys.get("GROQ_API_KEY"))
+        has_openai = bool(self.keys.get("OPENAI_API_KEY"))
+        if not has_groq and not has_openai:
             raise RuntimeError(
                 "No AI provider found. Set GROQ_API_KEY (free: console.groq.com)\n"
-                "or ensure AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT are in .dev.vars"
+                "or set OPENAI_API_KEY in your environment or .dev.vars"
             )
 
     def process(

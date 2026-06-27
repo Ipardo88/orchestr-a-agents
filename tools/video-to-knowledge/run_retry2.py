@@ -1,6 +1,6 @@
 """
 Second retry with 2-minute wait and reduced transcript caps
-for the two large videos that keep hitting Azure TPM limits.
+for large videos that hit synthesis rate limits.
 """
 import os, sys, time, urllib.request, json
 sys.path.insert(0, os.path.dirname(__file__))
