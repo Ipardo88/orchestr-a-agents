@@ -54,7 +54,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
     \"agentId\": \"bos\",
-    \"knowledgeType\": \"platform\",
+    \"knowledgeType\": \"framework\",
     \"topicSlug\": \"orchestra-bos-platform\",
     \"source\": \"upload\",
     \"sourcePath\": \"src/content/bos/orchestra-bos-platform.md\",
@@ -76,7 +76,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
     \"agentId\": \"strategy-foundation\",
-    \"knowledgeType\": \"platform\",
+    \"knowledgeType\": \"framework\",
     \"topicSlug\": \"orchestra-corporate-strategy-platform\",
     \"source\": \"upload\",
     \"sourcePath\": \"src/content/strategy-foundation/orchestra-corporate-strategy-platform.md\",
@@ -98,7 +98,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
     \"agentId\": \"business-model\",
-    \"knowledgeType\": \"platform\",
+    \"knowledgeType\": \"framework\",
     \"topicSlug\": \"orchestra-business-model-platform\",
     \"source\": \"upload\",
     \"sourcePath\": \"src/content/business-model/orchestra-business-model-platform.md\",

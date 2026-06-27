@@ -732,14 +732,14 @@ echo ""
 # To re-seed ONLY platform knowledge: ./src/content/seed_platform.sh
 # ============================================================
 
-echo "[40/40] Ingesting orchestra-bos-platform.md..."
+echo "[40/47] Ingesting orchestra-bos-platform.md..."
 CONTENT_BOS_PLATFORM=$(jq -Rs . < "$SCRIPT_DIR/bos/orchestra-bos-platform.md")
 curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
     \"agentId\": \"bos\",
-    \"knowledgeType\": \"platform\",
+    \"knowledgeType\": \"framework\",
     \"topicSlug\": \"orchestra-bos-platform\",
     \"source\": \"upload\",
     \"sourcePath\": \"src/content/bos/orchestra-bos-platform.md\",
@@ -748,7 +748,123 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   }" | jq .
 echo ""
 
-echo "==> Seeding complete (40 topics across 3 agents)."
+# ============================================================
+# FINANCIAL INTELLIGENCE AGENT (7 files — from skill reference library)
+# ============================================================
+
+echo "[41/47] Ingesting fin-three-statement.md..."
+CONTENT_FIN_3S=$(jq -Rs . < "$SCRIPT_DIR/financial-intelligence/fin-three-statement.md")
+curl -sf -X POST "$WORKER_URL/admin/ingest" \
+  -H "Content-Type: application/json" \
+  -H "x-admin-secret: $ADMIN_SECRET" \
+  -d "{
+    \"agentId\": \"financial-intelligence\",
+    \"knowledgeType\": \"framework\",
+    \"topicSlug\": \"fin-three-statement\",
+    \"source\": \"upload\",
+    \"sourcePath\": \"src/content/financial-intelligence/fin-three-statement.md\",
+    \"title\": \"3-Statement Integrated Financial Model — Build Sequence and Structure\",
+    \"content\": $CONTENT_FIN_3S
+  }" | jq .
+echo ""
+
+echo "[42/47] Ingesting fin-valuation.md..."
+CONTENT_FIN_VAL=$(jq -Rs . < "$SCRIPT_DIR/financial-intelligence/fin-valuation.md")
+curl -sf -X POST "$WORKER_URL/admin/ingest" \
+  -H "Content-Type: application/json" \
+  -H "x-admin-secret: $ADMIN_SECRET" \
+  -d "{
+    \"agentId\": \"financial-intelligence\",
+    \"knowledgeType\": \"framework\",
+    \"topicSlug\": \"fin-valuation\",
+    \"source\": \"upload\",
+    \"sourcePath\": \"src/content/financial-intelligence/fin-valuation.md\",
+    \"title\": \"Valuation Methods — DCF, Comps, Precedents, M&A, LBO, IPO, Intangibles\",
+    \"content\": $CONTENT_FIN_VAL
+  }" | jq .
+echo ""
+
+echo "[43/47] Ingesting fin-archetypes.md..."
+CONTENT_FIN_ARCH=$(jq -Rs . < "$SCRIPT_DIR/financial-intelligence/fin-archetypes.md")
+curl -sf -X POST "$WORKER_URL/admin/ingest" \
+  -H "Content-Type: application/json" \
+  -H "x-admin-secret: $ADMIN_SECRET" \
+  -d "{
+    \"agentId\": \"financial-intelligence\",
+    \"knowledgeType\": \"framework\",
+    \"topicSlug\": \"fin-archetypes\",
+    \"source\": \"upload\",
+    \"sourcePath\": \"src/content/financial-intelligence/fin-archetypes.md\",
+    \"title\": \"Business Archetypes — Financial Model Structure by Industry Type\",
+    \"content\": $CONTENT_FIN_ARCH
+  }" | jq .
+echo ""
+
+echo "[44/47] Ingesting fin-cashflow.md..."
+CONTENT_FIN_CF=$(jq -Rs . < "$SCRIPT_DIR/financial-intelligence/fin-cashflow.md")
+curl -sf -X POST "$WORKER_URL/admin/ingest" \
+  -H "Content-Type: application/json" \
+  -H "x-admin-secret: $ADMIN_SECRET" \
+  -d "{
+    \"agentId\": \"financial-intelligence\",
+    \"knowledgeType\": \"framework\",
+    \"topicSlug\": \"fin-cashflow\",
+    \"source\": \"upload\",
+    \"sourcePath\": \"src/content/financial-intelligence/fin-cashflow.md\",
+    \"title\": \"Monthly Cash Flow Forecasting — Timing Disconnects and Liquidity Planning\",
+    \"content\": $CONTENT_FIN_CF
+  }" | jq .
+echo ""
+
+echo "[45/47] Ingesting fin-budgeting.md..."
+CONTENT_FIN_BUD=$(jq -Rs . < "$SCRIPT_DIR/financial-intelligence/fin-budgeting.md")
+curl -sf -X POST "$WORKER_URL/admin/ingest" \
+  -H "Content-Type: application/json" \
+  -H "x-admin-secret: $ADMIN_SECRET" \
+  -d "{
+    \"agentId\": \"financial-intelligence\",
+    \"knowledgeType\": \"framework\",
+    \"topicSlug\": \"fin-budgeting\",
+    \"source\": \"upload\",
+    \"sourcePath\": \"src/content/financial-intelligence/fin-budgeting.md\",
+    \"title\": \"Master Budget — Revenue, OpEx, Capital, and Cash Budget Structure\",
+    \"content\": $CONTENT_FIN_BUD
+  }" | jq .
+echo ""
+
+echo "[46/47] Ingesting fin-scenarios.md..."
+CONTENT_FIN_SCN=$(jq -Rs . < "$SCRIPT_DIR/financial-intelligence/fin-scenarios.md")
+curl -sf -X POST "$WORKER_URL/admin/ingest" \
+  -H "Content-Type: application/json" \
+  -H "x-admin-secret: $ADMIN_SECRET" \
+  -d "{
+    \"agentId\": \"financial-intelligence\",
+    \"knowledgeType\": \"framework\",
+    \"topicSlug\": \"fin-scenarios\",
+    \"source\": \"upload\",
+    \"sourcePath\": \"src/content/financial-intelligence/fin-scenarios.md\",
+    \"title\": \"Scenario, Sensitivity, and Monte Carlo Analysis\",
+    \"content\": $CONTENT_FIN_SCN
+  }" | jq .
+echo ""
+
+echo "[47/47] Ingesting fin-best-practices.md..."
+CONTENT_FIN_BP=$(jq -Rs . < "$SCRIPT_DIR/financial-intelligence/fin-best-practices.md")
+curl -sf -X POST "$WORKER_URL/admin/ingest" \
+  -H "Content-Type: application/json" \
+  -H "x-admin-secret: $ADMIN_SECRET" \
+  -d "{
+    \"agentId\": \"financial-intelligence\",
+    \"knowledgeType\": \"framework\",
+    \"topicSlug\": \"fin-best-practices\",
+    \"source\": \"upload\",
+    \"sourcePath\": \"src/content/financial-intelligence/fin-best-practices.md\",
+    \"title\": \"Financial Modeling Best Practices — 5-Stage Lifecycle\",
+    \"content\": $CONTENT_FIN_BP
+  }" | jq .
+echo ""
+
+echo "==> Seeding complete (47 topics across 4 agents)."
 echo ""
 echo "Verify in Supabase SQL Editor:"
 echo "  SELECT agent_id, topic_slug, count(*) as chunks"
@@ -756,7 +872,7 @@ echo "  FROM knowledge_chunks"
 echo "  GROUP BY agent_id, topic_slug"
 echo "  ORDER BY agent_id, topic_slug;"
 echo ""
-echo "Expected: 39 topic_slugs across 3 agents:"
+echo "Expected: 47 topic_slugs across 4 agents:"
 echo "  bos (12): okr-methodology, kpi-design, capability-mapping, clarity-compass,"
 echo "    value-engines, playbook-library, company-scorecard, meeting-rhythm,"
 echo "    high-output-team, bos-scalable-os, bos-systems-building, orchestra-bos-platform"
@@ -768,3 +884,5 @@ echo "    bm-visualizing-canvas, bm-prototyping, bm-navigating-environment, bm-p
 echo "    bm-storytelling, bm-competing, bm-designing, bm-in-context, bm-numbers-improvement,"
 echo "    bm-case-dong-energy, bm-case-aws, bm-case-lego, bm-case-disney,"
 echo "    vpc-explained, vpc-mastering, vpc-case-tesla"
+echo "  financial-intelligence (7): fin-three-statement, fin-valuation, fin-archetypes,"
+echo "    fin-cashflow, fin-budgeting, fin-scenarios, fin-best-practices"
