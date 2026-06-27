@@ -533,6 +533,33 @@ export class SupabaseClient {
     return (rows as { id: string }[])[0].id;
   }
 
+  async createKpi(
+    orgId: string,
+    data: {
+      name: string;
+      description?: string;
+      unit?: string;
+      directionality: 'higher_better' | 'lower_better';
+      target_value?: number;
+      threshold_amber?: number;
+      threshold_red?: number;
+      frequency?: 'daily' | 'weekly' | 'monthly' | 'quarterly';
+    },
+  ): Promise<string> {
+    const rows = await this.post<unknown>('kpis', {
+      org_id: orgId,
+      name: data.name,
+      description: data.description ?? null,
+      unit: data.unit ?? null,
+      directionality: data.directionality,
+      target_value: data.target_value ?? null,
+      threshold_amber: data.threshold_amber ?? null,
+      threshold_red: data.threshold_red ?? null,
+      frequency: data.frequency ?? 'monthly',
+    });
+    return (rows as { id: string }[])[0].id;
+  }
+
   async updateOrganizationField(
     orgId: string,
     field: 'vision' | 'mission' | 'long_term_ambition',

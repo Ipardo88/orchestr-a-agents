@@ -275,6 +275,19 @@ export default {
               });
               createdIds.set(id, dbId);
 
+            } else if (entity === 'kpi') {
+              const dbId = await db.createKpi(orgId, {
+                name: String(payload.name),
+                description: payload.description ? String(payload.description) : undefined,
+                unit: payload.unit ? String(payload.unit) : undefined,
+                directionality: (payload.directionality as 'higher_better' | 'lower_better') ?? 'higher_better',
+                target_value: payload.target_value !== undefined ? Number(payload.target_value) : undefined,
+                threshold_amber: payload.threshold_amber !== undefined ? Number(payload.threshold_amber) : undefined,
+                threshold_red: payload.threshold_red !== undefined ? Number(payload.threshold_red) : undefined,
+                frequency: payload.frequency ? (payload.frequency as 'daily' | 'weekly' | 'monthly' | 'quarterly') : undefined,
+              });
+              createdIds.set(id, dbId);
+
             } else if (entity === 'key_result') {
               // Resolve parent objective DB id via parent_proposal_id
               const parentProposalId = payload.parent_proposal_id ? String(payload.parent_proposal_id) : null;

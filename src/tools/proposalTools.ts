@@ -87,6 +87,35 @@ export const PROPOSAL_TOOLS = [
   {
     type: 'function' as const,
     function: {
+      name: 'propose_kpi',
+      description: 'Propose creating a KPI (Key Performance Indicator) — a continuous metric tracked on a regular frequency with a target and alert thresholds. Use when the user asks to set up KPIs, add a metric to their dashboard, or track a business measure. KPIs are distinct from OKR Key Results: KPIs are always-on dashboards, KRs are cycle-specific targets.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'KPI name — short, specific e.g. "Monthly Recurring Revenue", "Lead Conversion Rate", "Net Promoter Score"' },
+          description: { type: 'string', description: 'What this KPI measures and why it matters — 1-2 sentences' },
+          unit: { type: 'string', description: 'Unit of measurement e.g. "$", "%", "NPS pts", "leads", "days"' },
+          directionality: {
+            type: 'string',
+            enum: ['higher_better', 'lower_better'],
+            description: 'Is higher better (revenue, NPS) or lower better (churn, cost, days-to-close)?',
+          },
+          target_value: { type: 'number', description: 'The target value to reach' },
+          threshold_amber: { type: 'number', description: 'Amber/warning threshold — value at which this KPI is at risk. For higher_better: below this is amber. For lower_better: above this is amber.' },
+          threshold_red: { type: 'number', description: 'Red/critical threshold — value at which action is required. For higher_better: below this is red. For lower_better: above this is red.' },
+          frequency: {
+            type: 'string',
+            enum: ['daily', 'weekly', 'monthly', 'quarterly'],
+            description: 'How often this KPI should be reviewed/updated',
+          },
+        },
+        required: ['name', 'directionality'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
       name: 'propose_organization_update',
       description: 'Propose updating a company profile field: vision, mission, or long_term_ambition. Use when the user asks for help drafting any of these.',
       parameters: {

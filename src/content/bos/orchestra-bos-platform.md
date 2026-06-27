@@ -2,7 +2,7 @@
 
 > **Agent reference document.** This describes the OrchestrA platform's BOS module as it exists today. Update this file when new features ship and re-seed via `seed_platform.sh`.
 >
-> Last updated: 2026-06-26 | Version: 0.1 (development)
+> Last updated: 2026-06-26 | Version: 0.2 (development)
 
 ---
 
@@ -30,9 +30,9 @@ The BOS dashboard. Shows a summary of BOS health across all sub-modules — acti
 ### 2. BOS Health
 **URL:** `/app/business-operating-system/bos-health`
 
-A health check across the operating system. Surfaces gaps, risks, and misalignments across OKRs, KPIs, capabilities, and engines. Use this to diagnose the overall state of execution before diving into specifics.
+A React Flow canvas that provides a visual health map of the entire BOS. Nodes represent each sub-system (OKRs, KPIs, Capabilities, Engines, Playbooks), connected by edges that show health scores and alignment gaps. Pulls live data from objectives, KPIs, capabilities, and engine configurations to compute health per area.
 
-The agent should reference BOS Health when the user asks "how is our BOS doing?" or "what's missing from our operating system?"
+The agent should reference BOS Health when the user asks "how is our BOS doing?" or "what's missing from our operating system?" Guide them to BOS → BOS Health for a visual overview, then drill into the specific sub-module with the lowest health score.
 
 ---
 
@@ -41,7 +41,7 @@ The agent should reference BOS Health when the user asks "how is our BOS doing?"
 
 **What it is:** A visual canvas (React Flow) where the user maps out a business engine — the end-to-end flow of a strategic initiative or business capability. An engine is a named system that produces value: Lead Generation Engine, Revenue Engine, Customer Success Engine, Fulfillment Engine, etc.
 
-**How to create:** Click **+ New Engine** button (top right of Engines page). This opens a canvas. The user names the engine, then builds it by adding nodes (activities/stages) and connections. It is a free-form canvas — not a form or a list.
+**How to create:** Click **+ New Engine** button (top right of Engines page). A dialog asks for the engine name and type (Acquisition, Fulfillment, Innovation, or Custom). After confirming, the canvas opens automatically.
 
 **IMPORTANT — agent cannot create engines:** The agent has no tool to create a Value Engine. It cannot propose an engine via tool calls. When the user asks to "create the lead generation engine" or "design the revenue engine," the agent must:
 1. Acknowledge they want a Value Engine in the platform
@@ -60,13 +60,13 @@ The agent should reference BOS Health when the user asks "how is our BOS doing?"
 ### 4. Playbooks
 **URL:** `/app/business-operating-system/playbooks`
 
-**What it is:** A library of documented operational processes. A playbook is a step-by-step guide for how the team executes a repeatable activity — how to qualify a lead, how to onboard a client, how to run a quarterly review, how to handle a churn risk.
+**What it is:** A full-featured playbook library with a structured rich editor. Playbooks have typed sections: Purpose, Scope, Tools Required, Responsibilities (role + tasks table), Step-by-Step Instructions, Compliance notes, Related Documents, and Revision History. They are categorized by type (Process, Runbook, Training, Onboarding, etc.) and support search, versioning, and archive.
 
-**How to create:** The user creates playbooks manually in the platform. The agent cannot create playbooks via proposals.
+**How to create:** Click **+ New Playbook** button. Fill in name, description, category. The editor then opens with structured sections. The user fills in each section. The agent cannot create playbooks via proposals.
 
-**When to reference:** When the user asks "how do we operationalize X?" or "how do we make sure the team follows the same process?" guide them to create a playbook. The agent can help structure the playbook content in the conversation, but the user types it into the platform.
+**When to reference:** When the user asks "how do we operationalize X?" or "how do we make sure the team follows the same process?" guide them to create a playbook. The agent can help design the content (steps, responsibilities, tools) in the conversation, then the user copies it into the platform sections.
 
-**Connection to Engines:** Playbooks are the documented instructions for each stage of a Value Engine. If the Lead Generation Engine has a "Lead Qualification" stage, there should be a "Lead Qualification Playbook" that tells the team exactly how to run that stage.
+**Connection to Engines:** Playbooks document the execution of each stage in a Value Engine. For the Lead Generation Engine: Lead Qualification stage → Lead Qualification Playbook.
 
 ---
 
@@ -131,15 +131,17 @@ This is the most AI-interactive sub-module. The agent CAN create objectives and 
 ### 7. Capabilities & Skills
 **URL:** `/app/business-operating-system/capabilities`
 
-**What it is:** A capabilities and skills matrix. Maps the capabilities the business needs to execute its strategy (from the "must-have capabilities" in Playing to Win) against the current skill levels of the team.
+**What it is:** A full capabilities management system with 4 views:
+- **Matrix view**: Heatmap grid of capabilities (rows) × employees (columns), showing proficiency levels per person per capability
+- **Gap Analysis**: Shows required proficiency vs. average actual per capability — surfaces critical gaps
+- **Scenarios**: Simulate "what if" — adjust target proficiency levels and see projected gap changes
+- **Action Plans**: Specific development actions for closing each capability gap (training, hiring, mentoring, outsource)
 
-**How it works:**
-- Capabilities are defined (e.g., "Digital Marketing," "Lead Qualification," "Financial Modeling")
-- Each capability is marked as critical (must be world-class) or supporting (table stakes)
-- Team members' skill levels are assessed per capability
-- The gap between required level and current level drives hiring, training, and development priorities
+Plus a **Taxonomy Manager** drawer to define and organize capabilities into categories.
 
-**What the agent can do:** The agent can discuss capability gaps, suggest which capabilities are critical given the strategy, and recommend priorities. The capabilities are stored in the platform via manual entry — the agent cannot create them via proposals currently.
+**How it works:** User defines capability taxonomy (e.g., "Digital Marketing," "Lead Qualification," "Financial Modeling"), marks each as critical or supporting, then assesses employee proficiency levels (1-5 scale). The matrix and gap analysis update live.
+
+**What the agent can do:** Discuss which capabilities are critical given the strategy, review gap analysis, suggest action plans for closing gaps. The agent cannot create capabilities via proposals currently.
 
 ---
 
@@ -180,6 +182,7 @@ Financial Analytics
 - Propose Objectives (`propose_objective`) — creates a row in the `objectives` table
 - Propose Key Results (`propose_key_result`) — creates a row in the `key_results` table
 - Link company objectives to strategic goals (via `strategic_goal_id`)
+- Propose KPIs (`propose_kpi`) — creates a row in the `kpis` table with target, amber/red thresholds, and frequency
 
 ### Agent CANNOT (user creates manually in the platform):
 - Create Value Engines — user must go to BOS → Engines → + New Engine
