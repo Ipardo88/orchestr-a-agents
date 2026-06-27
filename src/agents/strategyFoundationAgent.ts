@@ -17,7 +17,7 @@ export class StrategyFoundationAgent extends BaseAgent {
 
   readonly knowledgeConfig: AgentKnowledgeConfig = {
     phaseTopics: {
-      default: ['purpose-design', 'vision-design', 'strategic-goals-methodology'],
+      default: ['purpose-design', 'vision-design', 'strategic-goals-methodology', 'orchestra-strategy-foundation-platform', 'orchestra-platform-map'],
 
       // Phase 3A — Purpose
       'purpose|mission|why.exist|golden.circle|why|core.values|reason.for.being':

@@ -45,6 +45,29 @@ echo "==> Re-seeding platform knowledge to $WORKER_URL"
 echo ""
 
 # ============================================================
+# 0. Platform Map — seeded under ALL active agent IDs
+# Every agent retrieves this for cross-module navigation guidance
+# ============================================================
+PLATFORM_MAP_CONTENT=$(jq -Rs . < "$SCRIPT_DIR/shared/orchestra-platform-map.md")
+
+for AGENT_ID in bos strategy-foundation business-model financial-intelligence; do
+  echo "[0/?] Ingesting orchestra-platform-map.md (agent: $AGENT_ID)..."
+  curl -sf -X POST "$WORKER_URL/admin/ingest" \
+    -H "Content-Type: application/json" \
+    -H "x-admin-secret: $ADMIN_SECRET" \
+    -d "{
+      \"agentId\": \"$AGENT_ID\",
+      \"knowledgeType\": \"framework\",
+      \"topicSlug\": \"orchestra-platform-map\",
+      \"source\": \"upload\",
+      \"sourcePath\": \"src/content/shared/orchestra-platform-map.md\",
+      \"title\": \"OrchestrA Platform Map — All Modules, URLs, Navigation, Agent Ownership\",
+      \"content\": $PLATFORM_MAP_CONTENT
+    }" | jq .
+  echo ""
+done
+
+# ============================================================
 # 1. BOS Platform Guide
 # Agent: bos (active)
 # ============================================================
@@ -129,13 +152,13 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   }" | jq .
 echo ""
 
-echo "==> Platform knowledge re-seeded (4 files)."
+echo "==> Platform knowledge re-seeded."
 echo ""
-echo "Active agents retrieving platform knowledge:"
+echo "Shared (all active agents): orchestra-platform-map"
+echo "Active module guides:"
 echo "  bos               → orchestra-bos-platform"
 echo "  strategy-foundation → orchestra-strategy-foundation-platform"
-echo ""
-echo "Future agents (chunks ready, agents not yet built):"
+echo "Future module guides (chunks ready, agents TBD):"
 echo "  corporate-strategy → orchestra-corporate-strategy-platform"
 echo "  business-strategy  → orchestra-business-strategy-platform"
 echo ""
@@ -143,9 +166,10 @@ echo "Verify in Supabase:"
 echo "  SELECT agent_id, topic_slug, count(*) as chunks, max(created_at) as last_seeded"
 echo "  FROM knowledge_chunks"
 echo "  WHERE topic_slug IN ("
+echo "    'orchestra-platform-map',"
 echo "    'orchestra-bos-platform',"
 echo "    'orchestra-strategy-foundation-platform',"
 echo "    'orchestra-corporate-strategy-platform',"
 echo "    'orchestra-business-strategy-platform'"
 echo "  )"
-echo "  GROUP BY agent_id, topic_slug ORDER BY agent_id;"
+echo "  GROUP BY agent_id, topic_slug ORDER BY agent_id, topic_slug;"

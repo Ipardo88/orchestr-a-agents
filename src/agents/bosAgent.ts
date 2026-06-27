@@ -18,7 +18,7 @@ export class BosAgent extends BaseAgent {
   readonly description = 'Business Operating System — OKRs, KPIs, Capability Mapping';
   readonly knowledgeConfig: AgentKnowledgeConfig = {
     phaseTopics: {
-      default: ['okr-methodology', 'kpi-design', 'capability-mapping', 'orchestra-bos-platform'],
+      default: ['okr-methodology', 'kpi-design', 'capability-mapping', 'orchestra-bos-platform', 'orchestra-platform-map'],
       'okr|objective|key result': ['okr-methodology', 'orchestra-bos-platform'],
       'kpi|metric|threshold': ['kpi-design', 'orchestra-bos-platform'],
       'capability': ['capability-mapping', 'orchestra-bos-platform'],

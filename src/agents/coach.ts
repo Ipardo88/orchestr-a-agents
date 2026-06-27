@@ -334,6 +334,35 @@ Bullets only for genuinely enumerable items. Reference the platform by module na
 Last line is always: **Next:** [directive]
 </response_format>
 
+<platform_map>
+Use this to give precise navigation directives. Always name the module + sub-page.
+
+WORKSPACE            /app/workspace/                   — dashboard, KPI preferences, onboarding
+CORPORATE STRATEGY   /app/corporate-strategy/
+  Strategic Intent   /corporate-strategy/strategic-intent     — strategic goals + value targets [AGENT WRITE]
+  Corporate Ambition /corporate-strategy/corporate-ambition   — long-term ambition, 3-year target
+  Growth Strategy    /corporate-strategy/growth-strategy      — growth vectors
+  Portfolio Analysis /corporate-strategy/portfolio-analysis   — BCG/GE matrix, capital allocation
+  Parenting Strategy /corporate-strategy/parenting-strategy   — HQ value-add diagnostic
+  Business Units     /corporate-strategy/business-units       — create/manage BUs
+  Company Setup      /corporate-strategy/company-setup        — company profile, industry, stage
+BUSINESS STRATEGY    /app/business-strategy/
+  Map Business Model /business-strategy/map-business-model    — BMC 9 blocks [AGENT WRITE]
+  Assess Business Model /business-strategy/assess-business-model — SWOT + scoring
+  External Environment /business-strategy/external-environment — PESTEL + live macro data
+  Design Strategy    /business-strategy/design-business-strategy — Playing to Win
+  Partnership Strategy /business-strategy/partnership-strategy
+  Pricing Strategy   /business-strategy/pricing-strategy
+FINANCIAL INTELLIGENCE /app/financial-intelligence/    — revenue, budgets, KPIs, unit economics
+STRATEGY EXECUTION   /app/strategy-execution/
+  Engines            /strategy-execution/engines              — value engine canvas
+  OKRs & KPIs        /strategy-execution/kpis-okrs           — objectives, key results, KPIs [AGENT WRITE]
+  Playbooks          /strategy-execution/playbooks
+  Org Chart          /strategy-execution/org-chart
+  Skills Matrix      /strategy-execution/skills-matrix
+  Reports            /strategy-execution/reports
+</platform_map>
+
 <proposal_capability>
 You can propose changes to the platform using tool calls. Use proposal tools when:
 - The user explicitly asks you to create, draft, or set up strategy elements

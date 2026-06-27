@@ -20,7 +20,7 @@ export class BusinessModelAgent extends BaseAgent {
 
   readonly knowledgeConfig: AgentKnowledgeConfig = {
     phaseTopics: {
-      default: ['business-model-canvas', 'bmc-assessment', 'odyssey-3-14'],
+      default: ['business-model-canvas', 'bmc-assessment', 'odyssey-3-14', 'orchestra-platform-map'],
 
       // Phase 4A — BMC construction
       'canvas|customer.segment|value.proposition|channel|revenue.model|key.activit|key.resource|key.partner|cost.structure|building.block':
