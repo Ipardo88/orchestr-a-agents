@@ -35,13 +35,9 @@ export class StrategyFoundationAgent extends BaseAgent {
       'what.is.strategy|strategy.definition|plan.vs.strategy|plan.is.not|simple.strategy|strategy.simple':
         ['what-is-strategy', 'plan-vs-strategy'],
 
-      // Platform navigation — Corporate Strategy module
-      'corporate.strategy|strategic.intent|portfolio|parenting|corporate.ambition|growth.strategy|corporate.development|capital.allocation|company.setup':
-        ['orchestra-corporate-strategy-platform', 'strategic-goals-methodology'],
-
-      // Platform navigation — where to find things
-      'where.*find|how.*navigate|which.*page|which.*module|where.*enter|where.*see|platform|navigation|sub.module':
-        ['orchestra-corporate-strategy-platform'],
+      // Platform navigation — strategy foundation phase (mission/vision/goals pages)
+      'strategic.intent|where.*mission|where.*vision|where.*goal|which.*page|how.*navigate|where.*enter|where.*find|platform|navigation|company.profile|corporate.ambition':
+        ['orchestra-strategy-foundation-platform'],
     },
     topK: 4,
   };

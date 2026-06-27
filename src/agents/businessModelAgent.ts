@@ -57,14 +57,6 @@ export class BusinessModelAgent extends BaseAgent {
       // BM storytelling / pitch
       'storytell|pitch|present|investor|narrative|tell.your.story|business.story':
         ['bm-storytelling', 'bm-in-context'],
-
-      // Platform navigation — Business Strategy module
-      'business.strategy|design.business.strategy|playing.to.win.page|functional.strateg|partnership.strateg|pricing.strateg|map.business.model|assess.business.model|external.environment.page':
-        ['orchestra-business-model-platform', 'playing-to-win'],
-
-      // Platform navigation — where to find things
-      'where.*find|how.*navigate|which.*page|which.*module|where.*enter|where.*see|platform|navigation|sub.module':
-        ['orchestra-business-model-platform'],
     },
     topK: 5,
   };

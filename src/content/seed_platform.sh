@@ -2,9 +2,12 @@
 # ============================================================
 # OrchestrA Agents — Platform Knowledge Re-Seeder
 # ============================================================
-# Run this script ONLY when platform docs change — it re-seeds
-# just the platform-specific knowledge files, leaving all
-# methodology/framework knowledge untouched.
+# Re-seeds platform-specific knowledge files only.
+# Agent ID assignments:
+#   bos                → orchestra-bos-platform.md
+#   strategy-foundation → orchestra-strategy-foundation-platform.md
+#   corporate-strategy  → orchestra-corporate-strategy-platform.md (future agent)
+#   business-strategy   → orchestra-business-strategy-platform.md (future agent)
 #
 # When to run:
 #   - New module sub-page shipped
@@ -43,10 +46,9 @@ echo ""
 
 # ============================================================
 # 1. BOS Platform Guide
-# Agent: bos
-# File: src/content/bos/orchestra-bos-platform.md
+# Agent: bos (active)
 # ============================================================
-echo "[1/3] Ingesting orchestra-bos-platform.md..."
+echo "[1/4] Ingesting orchestra-bos-platform.md (agent: bos)..."
 CONTENT=$(jq -Rs . < "$SCRIPT_DIR/bos/orchestra-bos-platform.md")
 
 curl -sf -X POST "$WORKER_URL/admin/ingest" \
@@ -64,12 +66,12 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
 echo ""
 
 # ============================================================
-# 2. Corporate Strategy Platform Guide
-# Agent: strategy-foundation
-# File: src/content/strategy-foundation/orchestra-corporate-strategy-platform.md
+# 2. Strategy Foundation Platform Guide
+# Agent: strategy-foundation (active)
+# Scope: mission/vision pages, Strategic Intent (strategic goals)
 # ============================================================
-echo "[2/3] Ingesting orchestra-corporate-strategy-platform.md..."
-CONTENT=$(jq -Rs . < "$SCRIPT_DIR/strategy-foundation/orchestra-corporate-strategy-platform.md")
+echo "[2/4] Ingesting orchestra-strategy-foundation-platform.md (agent: strategy-foundation)..."
+CONTENT=$(jq -Rs . < "$SCRIPT_DIR/strategy-foundation/orchestra-strategy-foundation-platform.md")
 
 curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
@@ -77,46 +79,73 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -d "{
     \"agentId\": \"strategy-foundation\",
     \"knowledgeType\": \"framework\",
-    \"topicSlug\": \"orchestra-corporate-strategy-platform\",
+    \"topicSlug\": \"orchestra-strategy-foundation-platform\",
     \"source\": \"upload\",
-    \"sourcePath\": \"src/content/strategy-foundation/orchestra-corporate-strategy-platform.md\",
-    \"title\": \"OrchestrA Corporate Strategy Platform Guide — Sub-Modules, Navigation, Agent Capabilities\",
+    \"sourcePath\": \"src/content/strategy-foundation/orchestra-strategy-foundation-platform.md\",
+    \"title\": \"OrchestrA Strategy Foundation Platform Guide — Mission, Vision, Strategic Goals\",
     \"content\": $CONTENT
   }" | jq .
 echo ""
 
 # ============================================================
-# 3. Business Model Platform Guide
-# Agent: business-model
-# File: src/content/business-model/orchestra-business-model-platform.md
+# 3. Corporate Strategy Platform Guide
+# Agent: corporate-strategy (FUTURE — seeds now, agent TBD)
 # ============================================================
-echo "[3/3] Ingesting orchestra-business-model-platform.md..."
-CONTENT=$(jq -Rs . < "$SCRIPT_DIR/business-model/orchestra-business-model-platform.md")
+echo "[3/4] Ingesting orchestra-corporate-strategy-platform.md (agent: corporate-strategy — future)..."
+CONTENT=$(jq -Rs . < "$SCRIPT_DIR/strategy-foundation/orchestra-corporate-strategy-platform.md")
 
 curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"corporate-strategy\",
     \"knowledgeType\": \"framework\",
-    \"topicSlug\": \"orchestra-business-model-platform\",
+    \"topicSlug\": \"orchestra-corporate-strategy-platform\",
     \"source\": \"upload\",
-    \"sourcePath\": \"src/content/business-model/orchestra-business-model-platform.md\",
-    \"title\": \"OrchestrA Business Strategy Platform Guide — BMC, Playing to Win, Navigation, Agent Capabilities\",
+    \"sourcePath\": \"src/content/strategy-foundation/orchestra-corporate-strategy-platform.md\",
+    \"title\": \"OrchestrA Corporate Strategy Platform Guide — Portfolio, Parenting, Growth, Capital Allocation\",
     \"content\": $CONTENT
   }" | jq .
 echo ""
 
-echo "==> Platform knowledge re-seeded (3 files)."
+# ============================================================
+# 4. Business Strategy Platform Guide
+# Agent: business-strategy (FUTURE — seeds now, agent TBD)
+# ============================================================
+echo "[4/4] Ingesting orchestra-business-strategy-platform.md (agent: business-strategy — future)..."
+CONTENT=$(jq -Rs . < "$SCRIPT_DIR/business-model/orchestra-business-strategy-platform.md")
+
+curl -sf -X POST "$WORKER_URL/admin/ingest" \
+  -H "Content-Type: application/json" \
+  -H "x-admin-secret: $ADMIN_SECRET" \
+  -d "{
+    \"agentId\": \"business-strategy\",
+    \"knowledgeType\": \"framework\",
+    \"topicSlug\": \"orchestra-business-strategy-platform\",
+    \"source\": \"upload\",
+    \"sourcePath\": \"src/content/business-model/orchestra-business-strategy-platform.md\",
+    \"title\": \"OrchestrA Business Strategy Platform Guide — BMC, Playing to Win, PESTEL, Functional Strategies\",
+    \"content\": $CONTENT
+  }" | jq .
+echo ""
+
+echo "==> Platform knowledge re-seeded (4 files)."
+echo ""
+echo "Active agents retrieving platform knowledge:"
+echo "  bos               → orchestra-bos-platform"
+echo "  strategy-foundation → orchestra-strategy-foundation-platform"
+echo ""
+echo "Future agents (chunks ready, agents not yet built):"
+echo "  corporate-strategy → orchestra-corporate-strategy-platform"
+echo "  business-strategy  → orchestra-business-strategy-platform"
 echo ""
 echo "Verify in Supabase:"
-echo "  SELECT topic_slug, agent_id, count(*) as chunks, max(created_at) as last_seeded"
+echo "  SELECT agent_id, topic_slug, count(*) as chunks, max(created_at) as last_seeded"
 echo "  FROM knowledge_chunks"
-echo "  WHERE topic_slug IN ('orchestra-bos-platform', 'orchestra-corporate-strategy-platform', 'orchestra-business-model-platform')"
-echo "  GROUP BY topic_slug, agent_id ORDER BY topic_slug;"
-echo ""
-echo "When the platform evolves:"
-echo "  1. Edit the relevant .md file in src/content/<module>/"
-echo "  2. Update 'Last updated' date in the file header"
-echo "  3. Re-run this script"
-echo "  4. Commit the updated .md file"
+echo "  WHERE topic_slug IN ("
+echo "    'orchestra-bos-platform',"
+echo "    'orchestra-strategy-foundation-platform',"
+echo "    'orchestra-corporate-strategy-platform',"
+echo "    'orchestra-business-strategy-platform'"
+echo "  )"
+echo "  GROUP BY agent_id, topic_slug ORDER BY agent_id;"
