@@ -932,7 +932,75 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   }" | jq .
 echo ""
 
-echo "==> Seeding complete (51 topics across 5 agents)."
+# ============================================================
+# 14. Corporate Strategy
+# ============================================================
+
+echo "[52/55] Ingesting corp-portfolio-analysis.md..."
+CONTENT_CORP_PORT=$(jq -Rs . < "$SCRIPT_DIR/corporate-strategy/corp-portfolio-analysis.md")
+curl -sf -X POST "$WORKER_URL/admin/ingest" \
+  -H "Content-Type: application/json" \
+  -H "x-admin-secret: $ADMIN_SECRET" \
+  -d "{
+    \"agentId\": \"corporate-strategy\",
+    \"knowledgeType\": \"framework\",
+    \"topicSlug\": \"corp-portfolio-analysis\",
+    \"source\": \"upload\",
+    \"sourcePath\": \"src/content/corporate-strategy/corp-portfolio-analysis.md\",
+    \"title\": \"Corporate Strategy — Portfolio Analysis: Four Lenses, SBU Definition, Portfolio Roles\",
+    \"content\": $CONTENT_CORP_PORT
+  }" | jq .
+echo ""
+
+echo "[53/55] Ingesting corp-growth-transformation.md..."
+CONTENT_CORP_GROW=$(jq -Rs . < "$SCRIPT_DIR/corporate-strategy/corp-growth-transformation.md")
+curl -sf -X POST "$WORKER_URL/admin/ingest" \
+  -H "Content-Type: application/json" \
+  -H "x-admin-secret: $ADMIN_SECRET" \
+  -d "{
+    \"agentId\": \"corporate-strategy\",
+    \"knowledgeType\": \"framework\",
+    \"topicSlug\": \"corp-growth-transformation\",
+    \"source\": \"upload\",
+    \"sourcePath\": \"src/content/corporate-strategy/corp-growth-transformation.md\",
+    \"title\": \"Corporate Strategy — Growth, M&A, Divestitures & Portfolio Transformation\",
+    \"content\": $CONTENT_CORP_GROW
+  }" | jq .
+echo ""
+
+echo "[54/55] Ingesting corp-capital-allocation.md..."
+CONTENT_CORP_CAP=$(jq -Rs . < "$SCRIPT_DIR/corporate-strategy/corp-capital-allocation.md")
+curl -sf -X POST "$WORKER_URL/admin/ingest" \
+  -H "Content-Type: application/json" \
+  -H "x-admin-secret: $ADMIN_SECRET" \
+  -d "{
+    \"agentId\": \"corporate-strategy\",
+    \"knowledgeType\": \"framework\",
+    \"topicSlug\": \"corp-capital-allocation\",
+    \"source\": \"upload\",
+    \"sourcePath\": \"src/content/corporate-strategy/corp-capital-allocation.md\",
+    \"title\": \"Corporate Strategy — Capital Allocation: ROIC, Five Principles & Resource Allocation\",
+    \"content\": $CONTENT_CORP_CAP
+  }" | jq .
+echo ""
+
+echo "[55/55] Ingesting corp-parenting-financial.md..."
+CONTENT_CORP_PAR=$(jq -Rs . < "$SCRIPT_DIR/corporate-strategy/corp-parenting-financial.md")
+curl -sf -X POST "$WORKER_URL/admin/ingest" \
+  -H "Content-Type: application/json" \
+  -H "x-admin-secret: $ADMIN_SECRET" \
+  -d "{
+    \"agentId\": \"corporate-strategy\",
+    \"knowledgeType\": \"framework\",
+    \"topicSlug\": \"corp-parenting-financial\",
+    \"source\": \"upload\",
+    \"sourcePath\": \"src/content/corporate-strategy/corp-parenting-financial.md\",
+    \"title\": \"Corporate Strategy — Parenting Archetypes, Corporate Center Design & Financial Strategy\",
+    \"content\": $CONTENT_CORP_PAR
+  }" | jq .
+echo ""
+
+echo "==> Seeding complete (55 topics across 6 agents)."
 echo ""
 echo "Verify in Supabase SQL Editor:"
 echo "  SELECT agent_id, topic_slug, count(*) as chunks"
@@ -940,7 +1008,7 @@ echo "  FROM knowledge_chunks"
 echo "  GROUP BY agent_id, topic_slug"
 echo "  ORDER BY agent_id, topic_slug;"
 echo ""
-echo "Expected: 51 topic_slugs across 5 agents:"
+echo "Expected: 55 topic_slugs across 6 agents:"
 echo "  bos (12): okr-methodology, kpi-design, capability-mapping, clarity-compass,"
 echo "    value-engines, playbook-library, company-scorecard, meeting-rhythm,"
 echo "    high-output-team, bos-scalable-os, bos-systems-building, orchestra-bos-platform"
@@ -956,3 +1024,5 @@ echo "  financial-intelligence (7): fin-three-statement, fin-valuation, fin-arch
 echo "    fin-cashflow, fin-budgeting, fin-scenarios, fin-best-practices"
 echo "  signal-oracle (4): signal-workflow, signal-model-selection,"
 echo "    signal-energy-context, signal-evaluation"
+echo "  corporate-strategy (4): corp-portfolio-analysis, corp-growth-transformation,"
+echo "    corp-capital-allocation, corp-parenting-financial"
