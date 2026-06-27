@@ -18,13 +18,14 @@ export class BosAgent extends BaseAgent {
   readonly description = 'Business Operating System — OKRs, KPIs, Capability Mapping';
   readonly knowledgeConfig: AgentKnowledgeConfig = {
     phaseTopics: {
-      default: ['okr-methodology', 'kpi-design', 'capability-mapping'],
-      'okr|objective|key result': ['okr-methodology'],
-      'kpi|metric|threshold': ['kpi-design'],
-      'capability': ['capability-mapping'],
+      default: ['okr-methodology', 'kpi-design', 'capability-mapping', 'orchestra-bos-platform'],
+      'okr|objective|key result': ['okr-methodology', 'orchestra-bos-platform'],
+      'kpi|metric|threshold': ['kpi-design', 'orchestra-bos-platform'],
+      'capability': ['capability-mapping', 'orchestra-bos-platform'],
+      'engine|engines|lead generation engine|revenue engine|fulfillment engine|value engine|growth engine': ['value-engines', 'orchestra-bos-platform'],
+      'playbook|standard operating|sop|process library': ['playbook-library', 'orchestra-bos-platform'],
+      'bos|business operating system|platform|module|section|sub-module|navigate|where to|how to create|cascade view|tree view': ['orchestra-bos-platform'],
       'clarity.compass|3.year target|core values|strategic anchor|company purpose': ['clarity-compass'],
-      'value engine|growth engine|fulfillment engine|innovation engine': ['value-engines'],
-      'playbook|standard operating|sop|process library': ['playbook-library'],
       'north star|evergreen metric|company scorecard|weekly scorecard': ['company-scorecard'],
       'meeting rhythm|weekly meeting|quarterly sprint|annual plan|90.day sprint|scalable planning': ['meeting-rhythm'],
       'team canvas|high.output team|team design|span of control|role design|cab framework': ['high-output-team'],
