@@ -130,8 +130,8 @@ def _load_keys() -> dict:
                 pass
         keys[name] = val or os.getenv(name)
 
-    # Auto-load from .dev.vars if keys are missing (local dev convenience)
-    if not keys.get("GROQ_API_KEY") or not keys.get("OPENAI_API_KEY"):
+    # Auto-load from .dev.vars if any synthesis key is missing
+    if not keys.get("GROQ_API_KEY") or not keys.get("ANTHROPIC_API_KEY") or not keys.get("OPENAI_API_KEY"):
         dev_vars = os.path.join(_find_project_root(), ".dev.vars")
         if os.path.exists(dev_vars):
             with open(dev_vars, encoding="utf-8", errors="ignore") as f:
@@ -143,16 +143,17 @@ def _load_keys() -> dict:
                         if k in secret_names and not keys.get(k):
                             keys[k] = v
 
-    has_groq   = bool(keys.get("GROQ_API_KEY"))
-    has_openai = bool(keys.get("OPENAI_API_KEY"))
+    has_groq      = bool(keys.get("GROQ_API_KEY"))
+    has_openai    = bool(keys.get("OPENAI_API_KEY"))
+    has_anthropic = bool(keys.get("ANTHROPIC_API_KEY"))
     print("─" * 50)
     print("  API KEY STATUS")
     print("─" * 50)
-    print(f"  Groq   (synthesis)     {'✓  Ready' if has_groq else '○  Not set'}")
-    print(f"  OpenAI (synthesis)     {'✓  Ready' if has_openai else '○  Not set'}")
-    print(f"  Anthropic (frames)     {'✓  Ready' if keys.get('ANTHROPIC_API_KEY') else '○  Optional'}")
-    if not has_groq and not has_openai:
-        print("  ✗  Need GROQ_API_KEY or OPENAI_API_KEY for synthesis")
+    print(f"  Groq      (synthesis)  {'✓  Ready' if has_groq else '○  Not set'}")
+    print(f"  Anthropic (synthesis)  {'✓  Ready' if has_anthropic else '○  Not set'}")
+    print(f"  OpenAI    (synthesis)  {'✓  Ready' if has_openai else '○  Not set'}")
+    if not has_groq and not has_anthropic and not has_openai:
+        print("  ✗  Need GROQ_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY for synthesis")
     print("─" * 50)
     return keys
 
@@ -375,7 +376,7 @@ def analyze_frames_with_claude(frame_paths: list, title: str, keys: dict) -> str
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _call_llm(system: str, prompt: str, keys: dict, max_tokens: int = 4500) -> str:
-    """Call Groq or OpenAI, whichever is configured. Groq takes priority."""
+    """Call Groq → Anthropic → OpenAI, whichever is configured first."""
     if keys.get("GROQ_API_KEY"):
         from groq import Groq
         client = Groq(api_key=keys["GROQ_API_KEY"])
@@ -384,6 +385,17 @@ def _call_llm(system: str, prompt: str, keys: dict, max_tokens: int = 4500) -> s
             messages=[{"role":"system","content":system},{"role":"user","content":prompt}],
         )
         return resp.choices[0].message.content
+
+    if keys.get("ANTHROPIC_API_KEY"):
+        import anthropic as _anthropic
+        client = _anthropic.Anthropic(api_key=keys["ANTHROPIC_API_KEY"])
+        resp = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=max_tokens,
+            system=system,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return resp.content[0].text
 
     if keys.get("OPENAI_API_KEY"):
         import urllib.request, json as _json
@@ -407,7 +419,7 @@ def _call_llm(system: str, prompt: str, keys: dict, max_tokens: int = 4500) -> s
         return data["choices"][0]["message"]["content"]
 
     raise RuntimeError(
-        "No AI provider configured. Set GROQ_API_KEY or OPENAI_API_KEY."
+        "No AI provider configured. Set GROQ_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY."
     )
 
 
@@ -588,12 +600,15 @@ class VideoKnowledgeTool:
             print("  ffmpeg  ✗  not found — MP4 transcription unavailable")
         print("=" * 55 + "\n")
 
-        has_groq   = bool(self.keys.get("GROQ_API_KEY"))
-        has_openai = bool(self.keys.get("OPENAI_API_KEY"))
-        if not has_groq and not has_openai:
+        has_groq      = bool(self.keys.get("GROQ_API_KEY"))
+        has_anthropic = bool(self.keys.get("ANTHROPIC_API_KEY"))
+        has_openai    = bool(self.keys.get("OPENAI_API_KEY"))
+        if not has_groq and not has_anthropic and not has_openai:
             raise RuntimeError(
-                "No AI provider found. Set GROQ_API_KEY (free: console.groq.com)\n"
-                "or set OPENAI_API_KEY in your environment or .dev.vars"
+                "No AI provider found.\n"
+                "  Set GROQ_API_KEY (free: console.groq.com)  ← recommended\n"
+                "  Set ANTHROPIC_API_KEY in .dev.vars\n"
+                "  Set OPENAI_API_KEY in .dev.vars"
             )
 
     def process(
