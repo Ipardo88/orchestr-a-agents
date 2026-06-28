@@ -1,5 +1,5 @@
 ﻿import { BosAgent } from './bosAgent';
-import { BusinessModelAgent } from './businessModelAgent';
+import { BusinessStrategyAgent } from './businessStrategyAgent';
 import { CorporateStrategyAgent } from './corporateStrategyAgent';
 import { FinancialIntelligenceAgent } from './financialIntelligenceAgent';
 import { SignalOracleAgent } from './signalOracleAgent';
@@ -8,7 +8,7 @@ import type { BaseAgent } from './base/BaseAgent';
 
 export const AGENTS: Map<string, BaseAgent> = new Map<string, BaseAgent>([
   ['bos',                      new BosAgent()],
-  ['business-model',           new BusinessModelAgent()],
+  ['business-strategy',        new BusinessStrategyAgent()],
   ['corporate-strategy',       new CorporateStrategyAgent()],
   ['financial-intelligence',   new FinancialIntelligenceAgent()],
   ['signal-oracle',            new SignalOracleAgent()],

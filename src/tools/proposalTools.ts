@@ -183,4 +183,59 @@ export const PROPOSAL_TOOLS = [
       },
     },
   },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'propose_bmc_assessment',
+      description: 'Propose BMC Assessment scores (phase 4B). Use after discussing the strengths and risks of one or more BMC blocks. Provide a score (1-10) and optional note for each assessed block.',
+      parameters: {
+        type: 'object',
+        properties: {
+          items: {
+            type: 'object',
+            description: 'Assessment per BMC block. Keys: value, segments, channels, relationships, revenue, resources, activities, partners, cost. Each value has score (1-10) and optional note.',
+            additionalProperties: {
+              type: 'object',
+              properties: {
+                score: { type: 'number', description: 'Score from 1 (very weak) to 10 (excellent)' },
+                note: { type: 'string', description: 'Brief observation about this block' },
+              },
+              required: ['score'],
+            },
+          },
+        },
+        required: ['items'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'propose_playing_to_win',
+      description: 'Propose Strategic Choices using the Playing to Win framework (phase 4D). Call when the user confirms one or more of the five strategic choices. All fields are optional — only include confirmed choices.',
+      parameters: {
+        type: 'object',
+        properties: {
+          winning_aspiration: { type: 'string', description: 'What winning looks like: "To be [position] in [market], measured by [metric]." Must be competitive — not just an internal goal.' },
+          wtp_customer_segments: { type: 'string', description: 'Target customer segments — who you are serving (and implicitly who you are NOT serving)' },
+          wtp_geographies: { type: 'string', description: 'Target geographies — which markets or regions' },
+          wtp_channels: { type: 'string', description: 'Distribution channels — how you reach customers' },
+          wtp_product_categories: { type: 'string', description: 'Product/service categories offered' },
+          where_not_to_play: { type: 'string', description: 'Explicit exclusions — customers, markets, or channels the company will NOT pursue. Being explicit here sharpens the strategy.' },
+          how_to_win: { type: 'string', description: 'Competitive advantage statement — what unique position or capability makes you the choice in your playing fields. Must pass the copy-paste test: a competitor cannot simply replicate it.' },
+          competitive_advantage: { type: 'string', description: 'Whether advantage is low-cost (systemic cost reduction, standard product) or differentiation (deep customer understanding, premium positioning, customer loyalty)' },
+          capabilities: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Must-have capabilities — the activities the business must be genuinely excellent at to execute the strategy',
+          },
+          management_systems: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Management systems — the processes, metrics, and structures that reinforce the strategic choices and build capabilities',
+          },
+        },
+      },
+    },
+  },
 ] as const;

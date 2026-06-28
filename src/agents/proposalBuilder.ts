@@ -126,6 +126,33 @@ export function buildProposals(toolCalls: ToolCall[], orgId: string): Proposal[]
         });
         break;
       }
+
+      case 'propose_bmc_assessment': {
+        const items = args.items as Record<string, { score: number; note?: string }>;
+        const blockCount = items ? Object.keys(items).length : 0;
+        proposals.push({
+          id,
+          action: 'update',
+          entity: 'bmc_assessment',
+          label: `BMC Assessment: ${blockCount} block${blockCount !== 1 ? 's' : ''} scored`,
+          payload: args,
+          orgId,
+        });
+        break;
+      }
+
+      case 'propose_playing_to_win': {
+        const fields = Object.keys(args).filter(k => args[k] !== undefined && args[k] !== null && args[k] !== '');
+        proposals.push({
+          id,
+          action: 'update',
+          entity: 'playing_to_win',
+          label: `Playing to Win: ${fields.length} choice${fields.length !== 1 ? 's' : ''} defined`,
+          payload: args,
+          orgId,
+        });
+        break;
+      }
     }
   }
 

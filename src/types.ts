@@ -110,7 +110,9 @@ export type ProposalEntity =
   | 'key_result'
   | 'kpi'
   | 'organization'
-  | 'business_model_canvas';
+  | 'business_model_canvas'
+  | 'bmc_assessment'
+  | 'playing_to_win';
 
 export interface Proposal {
   id: string;

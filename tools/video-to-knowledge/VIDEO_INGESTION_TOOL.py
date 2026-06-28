@@ -81,8 +81,11 @@ WHISPER_MODEL = "base"   # base | small | medium | large  (larger = slower but b
 GROQ_MODEL    = "llama-3.3-70b-versatile"
 
 AGENT_OUTPUT_DIRS = {
-    "bos":               "src/content/bos",
-    "business-model":    "src/content/business-model",
+    "bos":                 "src/content/bos",
+    "business-model":      "src/content/business-model",
+    "corporate-strategy":  "src/content/corporate-strategy",
+    "financial-intelligence": "src/content/financial-intelligence",
+    "signal-oracle":       "src/content/signal-oracle",
     "strategy-foundation": "src/content/strategy-foundation",
 }
 
@@ -394,8 +397,9 @@ def _call_llm(system: str, prompt: str, keys: dict, max_tokens: int = 4500) -> s
             "https://api.openai.com/v1/chat/completions",
             data=body, method="POST",
             headers={
-                "Content-Type": "application/json",
+                "Content-Type":  "application/json",
                 "Authorization": f"Bearer {keys['OPENAI_API_KEY']}",
+                "User-Agent":    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
             },
         )
         with urllib.request.urlopen(req, timeout=120) as r:

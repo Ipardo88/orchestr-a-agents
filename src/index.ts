@@ -327,6 +327,25 @@ export default {
 
             } else if (entity === 'business_model_canvas') {
               await db.upsertBMCBlock(orgId, String(payload.block), String(payload.content));
+
+            } else if (entity === 'bmc_assessment') {
+              const items = payload.items as Record<string, { score?: number; note?: string }>;
+              if (!items || typeof items !== 'object') throw new Error('items object required');
+              await db.upsertBmcAssessment(orgId, items);
+
+            } else if (entity === 'playing_to_win') {
+              await db.upsertPlayingToWin(orgId, {
+                winning_aspiration: payload.winning_aspiration ? String(payload.winning_aspiration) : undefined,
+                wtp_customer_segments: payload.wtp_customer_segments ? String(payload.wtp_customer_segments) : undefined,
+                wtp_geographies: payload.wtp_geographies ? String(payload.wtp_geographies) : undefined,
+                wtp_channels: payload.wtp_channels ? String(payload.wtp_channels) : undefined,
+                wtp_product_categories: payload.wtp_product_categories ? String(payload.wtp_product_categories) : undefined,
+                where_not_to_play: payload.where_not_to_play ? String(payload.where_not_to_play) : undefined,
+                how_to_win: payload.how_to_win ? String(payload.how_to_win) : undefined,
+                competitive_advantage: payload.competitive_advantage ? String(payload.competitive_advantage) : undefined,
+                capabilities: Array.isArray(payload.capabilities) ? (payload.capabilities as unknown[]).map(String) : undefined,
+                management_systems: Array.isArray(payload.management_systems) ? (payload.management_systems as unknown[]).map(String) : undefined,
+              });
             }
           }
 

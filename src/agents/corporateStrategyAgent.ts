@@ -20,15 +20,28 @@ export class CorporateStrategyAgent extends BaseAgent {
 
       // Portfolio analysis and SBU frameworks
       'portfolio\\.analysis|portfolio\\.lens|portfolio\\.role|sbu|strategic\\.business\\.unit|bcg|growth.share|market\\.lens|value\\.lens|ownership\\.lens|risk\\.lens|market\\.attractiveness|competitive\\.position|profit\\.pool|roic.*portfolio|portfolio.*roic|parenting\\.advantage|linkage\\.advantage|ashridge|ownership\\.advantage|portfolio\\.health|advantaged\\.portfolio|portfolio.*balance|portfolio.*evaluation|portfolio.*role|cash\\.cow|growth\\.engine|exit\\.candidate':
-        ['corp-portfolio-analysis', 'corp-parenting-financial'],
+        [
+          'corp-portfolio-analysis', 'corp-parenting-financial',
+          'corp-portfolio-mgmt-case-part1', 'corp-portfolio-mgmt-case-part2',
+          'corp-portfolio-dynamics', 'corp-portfolio-imperative-ma',
+          'corp-advantaged-portfolio-part1', 'corp-advantaged-portfolio-part2',
+        ],
 
       // Growth, M&A, adjacency, divestitures
       'growth\\.strategy|adjacency|adjacent\\.move|m.a|merger|acquisition|divest|spin.off|carve.out|portfolio\\.transformation|portfolio\\.refresh|programmatic.*acqui|acqui.*programmatic|synergy|integration|deal.*premium|svar|shareholder\\.value\\.at\\.risk|transformation\\.roadmap|organic\\.growth|inorganic\\.growth|strategic\\.alliance|joint\\.venture|target\\.portfolio':
-        ['corp-growth-transformation', 'corp-portfolio-analysis'],
+        [
+          'corp-growth-transformation', 'corp-portfolio-analysis',
+          'corp-ms-tsr-part3',
+          'corp-portfolio-imperative-ma',
+        ],
 
       // Capital allocation
       'capital\\.allocation|roic|roiic|capex|capital\\.expenditure|dividend|buyback|share\\.repurchase|working\\.capital|cost\\.of\\.capital|wacc|nopat|invested\\.capital|eva|economic\\.value|zero.based.*capital|capital\\.discipline|capital\\.balance|natural\\.owner|best\\.owner|capital\\.market|internal\\.capital':
-        ['corp-capital-allocation', 'corp-parenting-financial'],
+        [
+          'corp-capital-allocation', 'corp-parenting-financial',
+          'corp-roic-framework-part3', 'corp-roic-framework-part4',
+          'corp-ms-capital-allocation-part5', 'corp-ms-capital-allocation-part6',
+        ],
 
       // Parenting, organization, financial strategy
       'parenting\\.strategy|parenting\\.archetype|corporate\\.center|corporate\\.headquarters|financial\\.sponsor|strategic\\.controller|strategic\\.architect|synergy\\.manager|functional\\.leader|operator\\.archetype|corporate\\.organization|divisional|matrix\\.organization|investment\\.thesis|financial\\.policy|leverage\\.ratio|debt\\.structure|investor\\.strategy|investor\\.relations|annual.*strategic.*planning':

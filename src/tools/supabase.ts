@@ -671,6 +671,50 @@ export class SupabaseClient {
     await this.patchWhere('business_model_profiles', { business_unit_id: `eq.${bus[0].id}` }, { [column]: content });
   }
 
+  async upsertPlayingToWin(
+    orgId: string,
+    data: {
+      winning_aspiration?: string;
+      wtp_customer_segments?: string;
+      wtp_geographies?: string;
+      wtp_channels?: string;
+      wtp_product_categories?: string;
+      where_not_to_play?: string;
+      how_to_win?: string;
+      competitive_advantage?: string;
+      capabilities?: string[];
+      management_systems?: string[];
+    },
+  ): Promise<void> {
+    const existing = await this.get<{ id: string }>('playing_to_win', {
+      org_id: `eq.${orgId}`, select: 'id', limit: '1',
+    });
+    const payload = Object.fromEntries(
+      Object.entries(data).filter(([, v]) => v !== undefined && v !== null && v !== ''),
+    );
+    if (existing[0]) {
+      await this.patchWhere('playing_to_win', { id: `eq.${existing[0].id}` }, payload);
+    } else {
+      await this.post('playing_to_win', { org_id: orgId, ...payload });
+    }
+  }
+
+  async upsertBmcAssessment(
+    orgId: string,
+    items: Record<string, { score?: number; note?: string }>,
+  ): Promise<void> {
+    const existing = await this.get<{ id: string; items: Record<string, unknown> | null }>(
+      'bm_assessments',
+      { org_id: `eq.${orgId}`, select: 'id,items', limit: '1' },
+    );
+    if (existing[0]) {
+      const merged = { ...(existing[0].items ?? {}), ...items };
+      await this.patchWhere('bm_assessments', { id: `eq.${existing[0].id}` }, { items: merged });
+    } else {
+      await this.post('bm_assessments', { org_id: orgId, items });
+    }
+  }
+
   async createInsight(params: {
     orgId: string;
     agentType: AgentType;
