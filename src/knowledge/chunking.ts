@@ -38,7 +38,7 @@ export function semanticChunk(text: string, maxTokens = DEFAULT_CHUNK_TOKENS): s
  * Implements the Anthropic contextual chunking pattern.
  */
 export async function generateDocumentSummary(text: string, env: Env): Promise<string> {
-  return callAzure(
+  return callOpenAI(
     `Summarise this document in 3 sentences. Focus on the main topic, the framework or methodology it describes, and its business application. Document:\n\n${text.slice(0, 4000)}`,
     env,
   );
@@ -53,14 +53,14 @@ export async function contextualizeChunk(
   chunk: string,
   env: Env,
 ): Promise<string> {
-  const context = await callAzure(
+  const context = await callOpenAI(
     `Here is a document summary:\n${docSummary}\n\nHere is a chunk from that document:\n${chunk}\n\nWrite 2-3 sentences that situate this chunk within the document. Explain what topic it covers and why it matters. Be concise — this will be prepended to the chunk for search indexing.`,
     env,
   );
   return `${context}\n\n${chunk}`;
 }
 
-async function callAzure(prompt: string, env: Env): Promise<string> {
+async function callOpenAI(prompt: string, env: Env): Promise<string> {
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {

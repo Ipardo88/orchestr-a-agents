@@ -10,22 +10,17 @@ PIPELINE
   MP4 file     →  ffmpeg audio extract          →  Whisper transcription  →  clean text
   [optional]   →  ffmpeg frame extraction       →  Claude vision analysis →  slide notes
 
-  clean text   →  Groq AI synthesis  →  structured knowledge .md  →  ready for seed.sh
+  clean text   →  OpenAI synthesis  →  structured knowledge .md  →  ready for seed.sh
 
 SETUP (run once)
 ----------------
-  pip install yt-dlp openai-whisper groq anthropic
+  pip install yt-dlp openai-whisper anthropic
   winget install Gyan.FFmpeg   (or: brew install ffmpeg)
 
-GOOGLE COLAB SECRETS  (Tools → Secrets)
-----------------------------------------
-  GROQ_API_KEY        | free at console.groq.com
-  ANTHROPIC_API_KEY   | optional, for frame analysis via Claude vision
-
-LOCAL (.env or environment)
----------------------------
-  GROQ_API_KEY=...
-  ANTHROPIC_API_KEY=...
+SECRETS  (.dev.vars or environment)
+------------------------------------
+  OPENAI_API_KEY      | required — synthesis via gpt-4o-mini
+  ANTHROPIC_API_KEY   | optional — frame analysis via Claude vision
 
 USAGE
 -----
@@ -118,7 +113,7 @@ def _load_keys() -> dict:
         pass
 
     secret_names = (
-        "GROQ_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY",
+        "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
     )
     for name in secret_names:
         val = None
@@ -130,8 +125,8 @@ def _load_keys() -> dict:
                 pass
         keys[name] = val or os.getenv(name)
 
-    # Auto-load from .dev.vars if any synthesis key is missing
-    if not keys.get("GROQ_API_KEY") or not keys.get("ANTHROPIC_API_KEY") or not keys.get("OPENAI_API_KEY"):
+    # Auto-load from .dev.vars
+    if not keys.get("OPENAI_API_KEY") or not keys.get("ANTHROPIC_API_KEY"):
         dev_vars = os.path.join(_find_project_root(), ".dev.vars")
         if os.path.exists(dev_vars):
             with open(dev_vars, encoding="utf-8", errors="ignore") as f:
@@ -143,17 +138,15 @@ def _load_keys() -> dict:
                         if k in secret_names and not keys.get(k):
                             keys[k] = v
 
-    has_groq      = bool(keys.get("GROQ_API_KEY"))
     has_openai    = bool(keys.get("OPENAI_API_KEY"))
     has_anthropic = bool(keys.get("ANTHROPIC_API_KEY"))
     print("─" * 50)
     print("  API KEY STATUS")
     print("─" * 50)
-    print(f"  Groq      (synthesis)  {'✓  Ready' if has_groq else '○  Not set'}")
-    print(f"  Anthropic (synthesis)  {'✓  Ready' if has_anthropic else '○  Not set'}")
     print(f"  OpenAI    (synthesis)  {'✓  Ready' if has_openai else '○  Not set'}")
-    if not has_groq and not has_anthropic and not has_openai:
-        print("  ✗  Need GROQ_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY for synthesis")
+    print(f"  Anthropic (frames)     {'✓  Ready' if has_anthropic else '○  Optional'}")
+    if not has_openai:
+        print("  ✗  Need OPENAI_API_KEY in .dev.vars")
     print("─" * 50)
     return keys
 
@@ -202,18 +195,20 @@ def _clean_srt(srt_text: str) -> str:
 
 def get_youtube_transcript(url: str, tmp_dir: str) -> str:
     """
-    Download transcript from YouTube using yt-dlp.
+    Download transcript from YouTube using yt-dlp (via python -m yt_dlp).
     Tries manual captions first, then auto-generated English.
     Returns cleaned plain text.
     """
     import subprocess
 
+    # Use python -m yt_dlp so it works on Windows where yt-dlp may not be in PATH
+    ytdlp_cmd = [sys.executable, "-m", "yt_dlp"]
+
     base = os.path.join(tmp_dir, "transcript")
 
     # Try manual subtitles first, then auto
     for sub_flag in ["--write-subs", "--write-auto-subs"]:
-        cmd = [
-            "yt-dlp",
+        cmd = ytdlp_cmd + [
             sub_flag,
             "--sub-lang", "en",
             "--sub-format", "vtt",
@@ -235,8 +230,8 @@ def get_youtube_transcript(url: str, tmp_dir: str) -> str:
 
     # Fallback: try SRT
     for sub_flag in ["--write-subs", "--write-auto-subs"]:
-        cmd = [
-            "yt-dlp", sub_flag,
+        cmd = ytdlp_cmd + [
+            sub_flag,
             "--sub-lang", "en",
             "--sub-format", "srt",
             "--skip-download",
@@ -376,27 +371,7 @@ def analyze_frames_with_claude(frame_paths: list, title: str, keys: dict) -> str
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _call_llm(system: str, prompt: str, keys: dict, max_tokens: int = 4500) -> str:
-    """Call Groq → Anthropic → OpenAI, whichever is configured first."""
-    if keys.get("GROQ_API_KEY"):
-        from groq import Groq
-        client = Groq(api_key=keys["GROQ_API_KEY"])
-        resp = client.chat.completions.create(
-            model=GROQ_MODEL, temperature=0.2, max_tokens=max_tokens,
-            messages=[{"role":"system","content":system},{"role":"user","content":prompt}],
-        )
-        return resp.choices[0].message.content
-
-    if keys.get("ANTHROPIC_API_KEY"):
-        import anthropic as _anthropic
-        client = _anthropic.Anthropic(api_key=keys["ANTHROPIC_API_KEY"])
-        resp = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=max_tokens,
-            system=system,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return resp.content[0].text
-
+    """Call OpenAI for transcript synthesis (gpt-4o-mini)."""
     if keys.get("OPENAI_API_KEY"):
         import urllib.request, json as _json
         body = _json.dumps({
@@ -419,7 +394,7 @@ def _call_llm(system: str, prompt: str, keys: dict, max_tokens: int = 4500) -> s
         return data["choices"][0]["message"]["content"]
 
     raise RuntimeError(
-        "No AI provider configured. Set GROQ_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY."
+        "No AI provider configured. Add OPENAI_API_KEY to .dev.vars"
     )
 
 
@@ -600,15 +575,10 @@ class VideoKnowledgeTool:
             print("  ffmpeg  ✗  not found — MP4 transcription unavailable")
         print("=" * 55 + "\n")
 
-        has_groq      = bool(self.keys.get("GROQ_API_KEY"))
-        has_anthropic = bool(self.keys.get("ANTHROPIC_API_KEY"))
-        has_openai    = bool(self.keys.get("OPENAI_API_KEY"))
-        if not has_groq and not has_anthropic and not has_openai:
+        if not self.keys.get("OPENAI_API_KEY"):
             raise RuntimeError(
-                "No AI provider found.\n"
-                "  Set GROQ_API_KEY (free: console.groq.com)  ← recommended\n"
-                "  Set ANTHROPIC_API_KEY in .dev.vars\n"
-                "  Set OPENAI_API_KEY in .dev.vars"
+                "OPENAI_API_KEY not found.\n"
+                "  Add OPENAI_API_KEY=sk-... to your .dev.vars file."
             )
 
     def process(

@@ -6,10 +6,7 @@ interface __BaseEnv_Env {
 	KNOWLEDGE_BUCKET: R2Bucket;
 	SUPABASE_URL: string;
 	SUPABASE_SERVICE_ROLE_KEY: string;
-	AZURE_OPENAI_ENDPOINT: string;
-	AZURE_OPENAI_API_KEY: string;
-	AZURE_OPENAI_DEPLOYMENT: string;
-	AZURE_OPENAI_API_VERSION: string;
+	OPENAI_API_KEY: string;
 	FRED_API_KEY: string;
 	ADMIN_SECRET: string;
 }
@@ -24,7 +21,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "SUPABASE_URL" | "SUPABASE_SERVICE_ROLE_KEY" | "AZURE_OPENAI_ENDPOINT" | "AZURE_OPENAI_API_KEY" | "AZURE_OPENAI_DEPLOYMENT" | "AZURE_OPENAI_API_VERSION" | "FRED_API_KEY" | "ADMIN_SECRET">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "SUPABASE_URL" | "SUPABASE_SERVICE_ROLE_KEY" | "OPENAI_API_KEY" | "FRED_API_KEY" | "ADMIN_SECRET">> {}
 }
 
 // Begin runtime types

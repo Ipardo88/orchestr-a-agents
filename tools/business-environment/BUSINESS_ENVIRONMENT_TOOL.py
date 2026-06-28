@@ -19,9 +19,9 @@ OUTPUT
 GOOGLE COLAB SECRETS (Tools → Secrets → Add)
 ---------------------------------------------
   FRED_API_KEY     | USCENSUS_API_KEY | BLS_API_KEY
-  EIA_API_KEY      | GROQ_API_KEY
+  EIA_API_KEY      | OPENAI_API_KEY
 
-All free. No hardcoded economic values. Everything flows from live APIs.
+All live data APIs are free. OPENAI_API_KEY uses gpt-4o-mini for synthesis.
 """
 
 import requests
@@ -149,7 +149,7 @@ def _load_secrets() -> Dict[str, Optional[str]]:
     for secret, env in [
         ("FRED_API_KEY","FRED_API_KEY"),("USCENSUS_API_KEY","USCENSUS_API_KEY"),
         ("BLS_API_KEY","BLS_API_KEY"),("EIA_API_KEY","EIA_API_KEY"),
-        ("GROQ_API_KEY","GROQ_API_KEY"),
+        ("OPENAI_API_KEY","OPENAI_API_KEY"),
     ]:
         val = None
         if in_colab:
@@ -164,7 +164,7 @@ def _load_secrets() -> Dict[str, Optional[str]]:
         "USCENSUS_API_KEY":"Census (Demographics)",
         "BLS_API_KEY":"BLS   (Labor & Industry)",
         "EIA_API_KEY":"EIA   (Energy)",
-        "GROQ_API_KEY":"Groq  (AI Synthesis)",
+        "OPENAI_API_KEY":"OpenAI (AI Synthesis)",
     }
     print("─"*55)
     print("  API KEY STATUS")
@@ -173,8 +173,8 @@ def _load_secrets() -> Dict[str, Optional[str]]:
         print(f"  {lbl:<36} {'✓  Ready' if keys.get(k) else '✗  Missing'}")
     if not any(keys.values()):
         print("\n  Add keys: Tools → Secrets  (Google Colab)")
-        print("  All free: fred.stlouisfed.org | api.census.gov")
-        print("            data.bls.gov | eia.gov/opendata | console.groq.com")
+        print("  Data APIs free: fred.stlouisfed.org | api.census.gov")
+        print("                  data.bls.gov | eia.gov/opendata")
     print("─"*55)
     return keys
 
@@ -907,13 +907,28 @@ Key Resources | Key Activities | Key Partnerships | Cost Structure
                   f"Location: {ctx['location']}\n"
                   f"Target customers: {ctx['target_customers']}\n\n"
                   f"LIVE DATA:\n{json.dumps(summary, indent=2, default=str)}")
+        if not self.keys.get("OPENAI_API_KEY"):
+            return "AI synthesis unavailable — add OPENAI_API_KEY to secrets."
         try:
-            from groq import Groq
-            r = Groq(api_key=self.keys["GROQ_API_KEY"]).chat.completions.create(
-                model="llama-3.3-70b-versatile", temperature=0.2, max_tokens=4500,
-                messages=[{"role":"system","content":system},
-                          {"role":"user","content":prompt}])
-            return r.choices[0].message.content
+            import urllib.request, json as _json
+            body = _json.dumps({
+                "model": "gpt-4o-mini",
+                "messages": [{"role":"system","content":system},
+                             {"role":"user","content":prompt}],
+                "temperature": 0.2,
+                "max_tokens": 4500,
+            }).encode()
+            req = urllib.request.Request(
+                "https://api.openai.com/v1/chat/completions",
+                data=body, method="POST",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {self.keys['OPENAI_API_KEY']}",
+                },
+            )
+            with urllib.request.urlopen(req, timeout=120) as r:
+                data = _json.loads(r.read())
+            return data["choices"][0]["message"]["content"]
         except Exception as e:
             return f"AI synthesis error: {e}"
 

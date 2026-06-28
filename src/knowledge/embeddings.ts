@@ -1,7 +1,7 @@
 import type { Env } from '../types';
 
 /**
- * Embed a single string using Azure OpenAI text-embedding-3-small (1536 dims).
+ * Embed a single string using OpenAI text-embedding-3-small (1536 dims).
  * Returns a float array ready to store as VECTOR(1536) in Supabase.
  */
 export async function embedText(text: string, env: Env): Promise<number[]> {

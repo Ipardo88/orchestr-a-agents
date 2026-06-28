@@ -129,7 +129,7 @@ export async function runStrategyHealthAgent(
 
   const goalTitles = strategicGoals.map(g => g.goal);
 
-  // 3. Call Azure OpenAI
+  // 3. Call OpenAI
   const prompt = buildPrompt(org.name, objectives, atRiskObjectives, kpiAlerts, goalTitles, capabilityGaps);
   const { result: report, usage } = await callOpenAI<StrategyHealthReport>(
     env.OPENAI_API_KEY,
