@@ -7,7 +7,7 @@ import { ingestDocument } from './knowledge/ingestion';
 // â”€â”€ CORS headers for requests from the web app â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PATCH, DELETE',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
@@ -302,6 +302,18 @@ export default {
                 unit: payload.unit ? String(payload.unit) : undefined,
                 start_value: payload.start_value !== undefined ? Number(payload.start_value) : undefined,
                 target_value: Number(payload.target_value),
+              });
+              createdIds.set(id, dbId);
+
+            } else if (entity === 'value_engine') {
+              const engineUserId = body.userId ?? '';
+              const nodes = Array.isArray(payload.nodes)
+                ? (payload.nodes as Array<{ label: string; stage?: string; description?: string }>)
+                : [];
+              const dbId = await db.createEngine(orgId, engineUserId, {
+                name: String(payload.name),
+                type: String(payload.type ?? 'custom'),
+                nodes,
               });
               createdIds.set(id, dbId);
             }

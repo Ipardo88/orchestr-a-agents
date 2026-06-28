@@ -87,6 +87,20 @@ export function buildProposals(toolCalls: ToolCall[], orgId: string): Proposal[]
         break;
       }
 
+      case 'propose_engine': {
+        const nodeCount = Array.isArray(args.nodes) ? (args.nodes as unknown[]).length : 0;
+        proposals.push({
+          id,
+          action: 'create',
+          entity: 'value_engine',
+          label: `Engine: "${String(args.name)}"`,
+          payload: args,
+          orgId,
+        });
+        void nodeCount;
+        break;
+      }
+
       case 'propose_organization_update': {
         const field = String(args.field);
         proposals.push({

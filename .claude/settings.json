@@ -67,7 +67,20 @@
       "Bash(python3 -m json.tool)",
       "Read(//c/Users/ivanp/Downloads/forecasting-time-series-skill/forecasting-time-series/**)",
       "Read(//c/Users/ivanp/Downloads/forecasting-time-series-skill/forecasting-time-series/scripts/**)",
-      "Bash(grep -n '^\\\\`\\\\`\\\\`' \"/c/Users/ivanp/Documents/OrchestrA-Strategy/orchestr-a-agents/src/agents/signalOracleAgent.ts\")"
+      "Bash(grep -n '^\\\\`\\\\`\\\\`' \"/c/Users/ivanp/Documents/OrchestrA-Strategy/orchestr-a-agents/src/agents/signalOracleAgent.ts\")",
+      "Bash(grep -rn \"azure\\\\|AZURE\\\\|OPENAI\\\\|openai\\\\|groq\\\\|GROQ\\\\|anthropic\\\\|ANTHROPIC\" --include=\"*.py\" --include=\"*.ts\" --include=\"*.toml\" -l)",
+      "Bash(ls .dev.vars)",
+      "Bash(cat wrangler.toml)",
+      "Bash(npx wrangler *)",
+      "Read(//c/Users/ivanp/Downloads/**)",
+      "Read(//c/Users/ivanp/Downloads//**)",
+      "Bash(cp \"/c/Users/ivanp/AppData/Local/Temp/claude/c--Users-ivanp-Documents-OrchestrA-Strategy-orchestr-a-agents/aced03cd-52c6-4397-a944-9cb0976f21c3/scratchpad/corp-skill/corporate-strategy/references/portfolio-analysis.md\" \"/c/Users/ivanp/Documents/OrchestrA-Strategy/orchestr-a-agents/src/content/corporate-strategy/corp-portfolio-analysis.md\")",
+      "Bash(cp \"/c/Users/ivanp/AppData/Local/Temp/claude/c--Users-ivanp-Documents-OrchestrA-Strategy-orchestr-a-agents/aced03cd-52c6-4397-a944-9cb0976f21c3/scratchpad/corp-skill/corporate-strategy/references/growth-and-transformation.md\" \"/c/Users/ivanp/Documents/OrchestrA-Strategy/orchestr-a-agents/src/content/corporate-strategy/corp-growth-transformation.md\")",
+      "Bash(cp \"/c/Users/ivanp/AppData/Local/Temp/claude/c--Users-ivanp-Documents-OrchestrA-Strategy-orchestr-a-agents/aced03cd-52c6-4397-a944-9cb0976f21c3/scratchpad/corp-skill/corporate-strategy/references/capital-allocation.md\" \"/c/Users/ivanp/Documents/OrchestrA-Strategy/orchestr-a-agents/src/content/corporate-strategy/corp-capital-allocation.md\")",
+      "Bash(cp \"/c/Users/ivanp/AppData\\\\Local/Temp/claude/c--Users-ivanp-Documents-OrchestrA-Strategy-orchestr-a-agents/aced03cd-52c6-4397-a944-9cb0976f21c3/scratchpad/corp-skill/corporate-strategy/references/parenting-and-financial.md\" \"/c/Users/ivanp/Documents/OrchestrA-Strategy/orchestr-a-agents/src/content/corporate-strategy/corp-parenting-financial.md\")",
+      "Bash(mkdir -p \"/c/Users/ivanp/.claude/skills/corporate-strategy\")",
+      "Bash(cp -r \"/c/Users/ivanp/AppData/Local/Temp/claude/c--Users-ivanp-Documents-OrchestrA-Strategy-orchestr-a-agents/aced03cd-52c6-4397-a944-9cb0976f21c3/scratchpad/corp-skill/corporate-strategy/.\" \"/c/Users/ivanp/.claude/skills/corporate-strategy/\")",
+      "Read(//c/Users/ivanp/.claude/skills/**)"
     ],
     "additionalDirectories": [
       "C:\\Users\\ivanp\\.claude"

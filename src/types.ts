@@ -105,6 +105,7 @@ export type ProposalAction = 'create' | 'update';
 export type ProposalEntity =
   | 'strategic_goal'
   | 'value_creation_target'
+  | 'value_engine'
   | 'objective'
   | 'key_result'
   | 'kpi'

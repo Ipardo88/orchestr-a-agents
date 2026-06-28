@@ -560,6 +560,84 @@ export class SupabaseClient {
     return (rows as { id: string }[])[0].id;
   }
 
+  async createEngine(
+    orgId: string,
+    userId: string,
+    data: {
+      name: string;
+      type: string;
+      nodes: Array<{ label: string; stage?: string; description?: string }>;
+    },
+  ): Promise<string> {
+    // Resolve primary business unit for this org
+    const bus = await this.get<{ id: string }>('business_units', {
+      org_id: `eq.${orgId}`,
+      select: 'id',
+      order: 'created_at.asc',
+      limit: '1',
+    });
+    const buId = bus[0]?.id ?? null;
+
+    // Create engine header
+    const engineRows = await this.post<{ id: string }>('engines', {
+      user_id: userId,
+      org_id: orgId,
+      business_unit_id: buId,
+      name: data.name,
+      type: data.type,
+      custom_type_name: data.type === 'custom' ? data.name : null,
+    });
+    const engineId = (engineRows as unknown as { id: string }[])[0].id;
+
+    // Build full node list: Start → activity nodes → End
+    const NODE_SPACING_X = 260;
+    const allNodes = [
+      { label: 'Start', node_type: 'start_end', x: 100, y: 300, stage: null as string | null, description: null as string | null },
+      ...data.nodes.map((n, i) => ({
+        label: n.label,
+        node_type: 'task',
+        x: 380 + i * NODE_SPACING_X,
+        y: 300,
+        stage: n.stage ?? null,
+        description: n.description ?? null,
+      })),
+      { label: 'End', node_type: 'start_end', x: 380 + data.nodes.length * NODE_SPACING_X, y: 300, stage: null, description: null },
+    ];
+
+    // Insert nodes sequentially and collect IDs for edge wiring
+    const nodeIds: string[] = [];
+    for (const node of allNodes) {
+      const rows = await this.post<{ id: string }>('engine_nodes', {
+        engine_id: engineId,
+        user_id: userId,
+        org_id: orgId,
+        business_unit_id: buId,
+        node_type: node.node_type,
+        label: node.label,
+        position: { x: node.x, y: node.y },
+        metadata: {
+          ...(node.description ? { description: node.description } : {}),
+          ...(node.stage ? { processStageL1: node.stage } : {}),
+        },
+      });
+      nodeIds.push((rows as unknown as { id: string }[])[0].id);
+    }
+
+    // Insert edges: each node → next node
+    for (let i = 0; i < nodeIds.length - 1; i++) {
+      await this.post<unknown>('engine_edges', {
+        engine_id: engineId,
+        user_id: userId,
+        org_id: orgId,
+        business_unit_id: buId,
+        source_node_id: nodeIds[i],
+        target_node_id: nodeIds[i + 1],
+      });
+    }
+
+    return engineId;
+  }
+
   async updateOrganizationField(
     orgId: string,
     field: 'vision' | 'mission' | 'long_term_ambition',

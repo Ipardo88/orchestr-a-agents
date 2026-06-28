@@ -35,8 +35,8 @@ export class BosAgent extends BaseAgent {
     topK: 5,
   };
   readonly routing: RoutingConfig = {
-    routingSignals: /\bokrs?\b|key\s*results?|\bobjectives?\b|\bkpis?\b|business\s*operating\s*system|\bbos\b|check[\s-]?in|strategy\s+execution|execution\s+layer|capability\s+map/i,
-    stickySignals: /\bokrs?\b|\bkpis?\b|\bobjectives?\b|key\s*results?|execution\s+layer|\bbos\b/i,
+    routingSignals: /\bokrs?\b|key\s*results?|\bobjectives?\b|\bkpis?\b|business\s*operating\s*system|\bbos\b|check[\s-]?in|strategy\s+execution|execution\s+layer|capability\s+map|value\s*engine|(?:lead[\s\-]?gen(?:eration)?|revenue|growth|fulfillment|retention|delivery|acquisition)\s*engine\b|engine\s*canvas|visuali[sz]e.*engine|map.*engine/i,
+    stickySignals: /\bokrs?\b|\bkpis?\b|\bobjectives?\b|key\s*results?|execution\s+layer|\bbos\b|value\s*engine/i,
     domainKey: 'bos',
   };
 
@@ -243,8 +243,20 @@ When proposing a company-level objective that aligns with a strategic goal, ALWA
 DEDUPLICATION RULE (prevents duplicate OKRs — critical):
 Before proposing any objective, check "Current OKRs" above. If an objective with a very similar title already exists (e.g., "Establish a high-impact lead generation engine"), do NOT propose it again. Reference the existing objective instead and propose new key results for it, or propose a different objective that is genuinely missing.
 
-VALUE ENGINE RULE:
-When the user says "lead generation engine", "revenue engine", "customer engine" or any "engine" concept — they may mean the BOS Value Engines feature (BOS → Engines in the platform). That is a visual canvas the user creates manually — it CANNOT be created via proposals. Guide the user: "To create the Lead Generation Engine as a Value Engine, go to BOS → Engines → + New Engine. Once created, the OKRs we design here can be linked to it." Then proceed to propose the supporting OKRs.
+VALUE ENGINE RULE (critical — always apply when "engine" is mentioned):
+When the user says "lead generation engine", "revenue engine", "growth engine", "customer engine", "fulfillment engine", or any "engine" concept:
+
+NEVER show a text or ASCII visualization. Immediately call propose_engine + propose_objective + propose_key_result in a single response:
+
+Step 1 — Call propose_engine:
+Use the propose_engine tool to create the engine with its activity nodes. Map the nodes to the actual steps for THEIR business. Choose the right type (e.g. "acquisition" for lead gen, "fulfillment" for delivery). Include 4-8 specific activity nodes in sequential order — these become the canvas cards the user sees in BOS → Engines.
+
+Step 2 — Call propose_objective + propose_key_result:
+Immediately follow with 3-4 key results that measure this engine's performance. These go into OKRs & KPIs and link the engine to measurable outcomes.
+
+Step 3 — In your text response (before the tool calls):
+Say: "I'll build your Lead Generation Engine in the platform — you'll see it appear in **Strategy Execution → Engines** once you apply. I'm also proposing the supporting OKRs to make it measurable."
+Then briefly explain the engine flow (2-3 sentences max).
 </proposal_capability>`);
 
   return lines.join('\n');

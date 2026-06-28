@@ -135,6 +135,38 @@ export const PROPOSAL_TOOLS = [
   {
     type: 'function' as const,
     function: {
+      name: 'propose_engine',
+      description: 'Propose creating a Value Engine in BOS → Engines. Use when the user discusses a lead generation engine, revenue engine, fulfillment engine, or any operational engine. Creates the engine with its activity nodes and edges. Always follow with propose_objective + propose_key_result to make the engine measurable.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Engine name e.g. "Lead Generation Engine", "Client Fulfillment Engine"' },
+          type: {
+            type: 'string',
+            enum: ['acquisition', 'fulfillment', 'success', 'finance', 'hr', 'legal', 'product', 'custom'],
+            description: 'Engine type — use "acquisition" for lead gen/sales engines, "fulfillment" for delivery/operations, "success" for retention/CS, "custom" for anything else',
+          },
+          nodes: {
+            type: 'array',
+            description: 'The activity steps in this engine in sequential order. Do NOT include Start/End nodes — they are added automatically.',
+            items: {
+              type: 'object',
+              properties: {
+                label: { type: 'string', description: 'Step label e.g. "Run Digital Ads (Facebook + Google)", "Qualify Leads via CRM"' },
+                stage: { type: 'string', description: 'Process stage e.g. "Lead Generation", "Lead Conversion", "Close Sale", "Onboarding", "Delivery"' },
+                description: { type: 'string', description: 'What happens in this step — 1 sentence' },
+              },
+              required: ['label'],
+            },
+          },
+        },
+        required: ['name', 'type', 'nodes'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
       name: 'propose_bmc_update',
       description: 'Propose updating a Business Model Canvas block. Use when the user asks for help filling in the BMC.',
       parameters: {
