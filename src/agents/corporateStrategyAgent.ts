@@ -16,7 +16,7 @@ export class CorporateStrategyAgent extends BaseAgent {
 
   readonly knowledgeConfig: AgentKnowledgeConfig = {
     phaseTopics: {
-      default: ['corp-portfolio-analysis', 'corp-parenting-financial'],
+      default: ['corp-portfolio-analysis', 'corp-parenting-financial', 'corp-intro-corporate-strategy'],
 
       // Portfolio analysis and SBU frameworks
       'portfolio\\.analysis|portfolio\\.lens|portfolio\\.role|sbu|strategic\\.business\\.unit|bcg|growth.share|market\\.lens|value\\.lens|ownership\\.lens|risk\\.lens|market\\.attractiveness|competitive\\.position|profit\\.pool|roic.*portfolio|portfolio.*roic|parenting\\.advantage|linkage\\.advantage|ashridge|ownership\\.advantage|portfolio\\.health|advantaged\\.portfolio|portfolio.*balance|portfolio.*evaluation|portfolio.*role|cash\\.cow|growth\\.engine|exit\\.candidate':
@@ -31,8 +31,8 @@ export class CorporateStrategyAgent extends BaseAgent {
       'growth\\.strategy|adjacency|adjacent\\.move|m.a|merger|acquisition|divest|spin.off|carve.out|portfolio\\.transformation|portfolio\\.refresh|programmatic.*acqui|acqui.*programmatic|synergy|integration|deal.*premium|svar|shareholder\\.value\\.at\\.risk|transformation\\.roadmap|organic\\.growth|inorganic\\.growth|strategic\\.alliance|joint\\.venture|target\\.portfolio':
         [
           'corp-growth-transformation', 'corp-portfolio-analysis',
-          'corp-ms-tsr-part3',
-          'corp-portfolio-imperative-ma',
+          'corp-ms-tsr-part3', 'corp-portfolio-imperative-ma',
+          'corp-ma-timing-strategy',
         ],
 
       // Capital allocation
@@ -41,7 +41,12 @@ export class CorporateStrategyAgent extends BaseAgent {
           'corp-capital-allocation', 'corp-parenting-financial',
           'corp-roic-framework-part3', 'corp-roic-framework-part4',
           'corp-ms-capital-allocation-part5', 'corp-ms-capital-allocation-part6',
+          'corp-finance-capital-allocation', 'corp-mauboussin-capital-allocation',
         ],
+
+      // Corporate strategy fundamentals
+      'corporate\\.strategy|what\\.is\\.corporate|corporate\\.advantage|corporate\\.level|multi.business|conglomerat|diversif|corporate\\.objective|objective\\.function|corporate\\.ambition|corporate\\.mission|corporate\\.vision':
+        ['corp-intro-corporate-strategy', 'corp-portfolio-analysis', 'corp-parenting-financial'],
 
       // Parenting, organization, financial strategy
       'parenting\\.strategy|parenting\\.archetype|corporate\\.center|corporate\\.headquarters|financial\\.sponsor|strategic\\.controller|strategic\\.architect|synergy\\.manager|functional\\.leader|operator\\.archetype|corporate\\.organization|divisional|matrix\\.organization|investment\\.thesis|financial\\.policy|leverage\\.ratio|debt\\.structure|investor\\.strategy|investor\\.relations|annual.*strategic.*planning':
