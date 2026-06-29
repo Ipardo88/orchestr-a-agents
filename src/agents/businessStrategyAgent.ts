@@ -66,7 +66,7 @@ export class BusinessStrategyAgent extends BaseAgent {
   };
 
   readonly routing: RoutingConfig = {
-    routingSignals: /business\s*model|bmc|canvas|value\s*proposition|revenue\s*model|pestel|playing\s*to\s*win|odyssey|business\s*model\s*canvas|customer\s*segment|cost\s*structure|key\s*partner|strategic\s*choice|where\s*to\s*play|how\s*to\s*win|winning\s*aspiration|business\s*strategy|competitive\s*advantage/i,
+    routingSignals: /business\s*model|bmc|canvas|value\s*proposition|revenue\s*model|pestel|\bswot\b|playing\s*to\s*win|odyssey|business\s*model\s*canvas|customer\s*segment|cost\s*structure|key\s*partner|strategic\s*choice|where\s*to\s*play|how\s*to\s*win|winning\s*aspiration|business\s*strategy|competitive\s*advantage/i,
     stickySignals: /\bbmc\b|canvas|business\s*model|pestel|odyssey|playing\s*to\s*win|strategic\s*choice|business\s*strategy/i,
     domainKey: 'business-strategy',
   };

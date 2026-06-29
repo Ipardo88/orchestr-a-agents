@@ -54,7 +54,7 @@ function assessDomains(ctx: CompanyContext): DomainStatus {
 // Priority: (1) explicit user intent, (2) sticky routing from recent messages,
 // (3) domain-completeness gap (what's most needed).
 
-type AgentRoute = 'supervisor' | 'strategy-foundation' | 'business-model' | 'bos';
+type AgentRoute = 'supervisor' | 'strategy-foundation' | 'business-strategy' | 'bos';
 
 function detectRoute(
   message: string,
@@ -78,7 +78,7 @@ function detectRoute(
     return 'strategy-foundation';
   }
   if (/business\s*model|canvas\b|bmc\b|value\s*prop|customer\s*segment|pestel|swot|where\s*to\s*play|how\s*to\s*win|strategic\s*choice/i.test(msg)) {
-    return 'business-model';
+    return 'business-strategy';
   }
 
   // 2. Sticky routing — check registry agents first
@@ -90,13 +90,13 @@ function detectRoute(
     return 'strategy-foundation';
   }
   if (/business\s*model|canvas\b|value\s*prop|customer\s*segment|pestel|where\s*to\s*play|how\s*to\s*win/i.test(recent)) {
-    return 'business-model';
+    return 'business-strategy';
   }
 
   // 3. Domain-completeness routing (only after at least 2 back-and-forth exchanges)
   if (history.length >= 4) {
     if (domains.strategyFoundation !== 'complete') return 'strategy-foundation';
-    if (domains.businessModel !== 'complete') return 'business-model';
+    if (domains.businessModel !== 'complete') return 'business-strategy';
     // Check registry agents via domainKey loop
     for (const [agentId, agent] of AGENTS.entries()) {
       const dk = agent.routing.domainKey as keyof typeof domains;

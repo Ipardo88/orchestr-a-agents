@@ -280,7 +280,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
 echo ""
 
 # ============================================================
-# BUSINESS MODEL AGENT — 6 files
+# BUSINESS STRATEGY AGENT — 6 files
 # ============================================================
 
 echo "[13/18] Ingesting business-model-canvas.md..."
@@ -289,7 +289,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"framework\",
     \"topicSlug\": \"business-model-canvas\",
     \"source\": \"upload\",
@@ -305,7 +305,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"framework\",
     \"topicSlug\": \"bmc-assessment\",
     \"source\": \"upload\",
@@ -321,7 +321,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"framework\",
     \"topicSlug\": \"pestel-analysis\",
     \"source\": \"upload\",
@@ -337,7 +337,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"framework\",
     \"topicSlug\": \"playing-to-win\",
     \"source\": \"upload\",
@@ -353,7 +353,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"framework\",
     \"topicSlug\": \"odyssey-3-14\",
     \"source\": \"upload\",
@@ -369,7 +369,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"benchmark\",
     \"topicSlug\": \"business-model-examples\",
     \"source\": \"upload\",
@@ -425,7 +425,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"framework\",
     \"topicSlug\": \"bm-idea-to-model\",
     \"source\": \"upload\",
@@ -441,7 +441,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"framework\",
     \"topicSlug\": \"bm-visualizing-canvas\",
     \"source\": \"upload\",
@@ -457,7 +457,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"framework\",
     \"topicSlug\": \"bm-prototyping\",
     \"source\": \"upload\",
@@ -473,7 +473,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"framework\",
     \"topicSlug\": \"bm-navigating-environment\",
     \"source\": \"upload\",
@@ -489,7 +489,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"framework\",
     \"topicSlug\": \"bm-proving-model\",
     \"source\": \"upload\",
@@ -505,7 +505,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"framework\",
     \"topicSlug\": \"bm-storytelling\",
     \"source\": \"upload\",
@@ -521,7 +521,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"framework\",
     \"topicSlug\": \"bm-competing\",
     \"source\": \"upload\",
@@ -537,7 +537,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"framework\",
     \"topicSlug\": \"bm-designing\",
     \"source\": \"upload\",
@@ -553,7 +553,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"framework\",
     \"topicSlug\": \"bm-in-context\",
     \"source\": \"upload\",
@@ -569,7 +569,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"framework\",
     \"topicSlug\": \"bm-numbers-improvement\",
     \"source\": \"upload\",
@@ -585,7 +585,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"benchmark\",
     \"topicSlug\": \"bm-case-dong-energy\",
     \"source\": \"upload\",
@@ -601,7 +601,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"benchmark\",
     \"topicSlug\": \"bm-case-aws\",
     \"source\": \"upload\",
@@ -617,7 +617,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"benchmark\",
     \"topicSlug\": \"bm-case-lego\",
     \"source\": \"upload\",
@@ -633,7 +633,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"benchmark\",
     \"topicSlug\": \"bm-case-disney\",
     \"source\": \"upload\",
@@ -649,7 +649,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"framework\",
     \"topicSlug\": \"vpc-explained\",
     \"source\": \"upload\",
@@ -665,7 +665,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"framework\",
     \"topicSlug\": \"vpc-mastering\",
     \"source\": \"upload\",
@@ -681,7 +681,7 @@ curl -sf -X POST "$WORKER_URL/admin/ingest" \
   -H "Content-Type: application/json" \
   -H "x-admin-secret: $ADMIN_SECRET" \
   -d "{
-    \"agentId\": \"business-model\",
+    \"agentId\": \"business-strategy\",
     \"knowledgeType\": \"benchmark\",
     \"topicSlug\": \"vpc-case-tesla\",
     \"source\": \"upload\",

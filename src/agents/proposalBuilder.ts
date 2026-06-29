@@ -87,6 +87,19 @@ export function buildProposals(toolCalls: ToolCall[], orgId: string): Proposal[]
         break;
       }
 
+      case 'propose_kpi': {
+        const kpiLabel = args.name ? `KPI: ${String(args.name)}` : 'KPI';
+        proposals.push({
+          id,
+          action: 'create',
+          entity: 'kpi',
+          label: kpiLabel,
+          payload: args,
+          orgId,
+        });
+        break;
+      }
+
       case 'propose_engine': {
         const nodeCount = Array.isArray(args.nodes) ? (args.nodes as unknown[]).length : 0;
         proposals.push({

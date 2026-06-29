@@ -80,7 +80,26 @@
       "Bash(cp \"/c/Users/ivanp/AppData\\\\Local/Temp/claude/c--Users-ivanp-Documents-OrchestrA-Strategy-orchestr-a-agents/aced03cd-52c6-4397-a944-9cb0976f21c3/scratchpad/corp-skill/corporate-strategy/references/parenting-and-financial.md\" \"/c/Users/ivanp/Documents/OrchestrA-Strategy/orchestr-a-agents/src/content/corporate-strategy/corp-parenting-financial.md\")",
       "Bash(mkdir -p \"/c/Users/ivanp/.claude/skills/corporate-strategy\")",
       "Bash(cp -r \"/c/Users/ivanp/AppData/Local/Temp/claude/c--Users-ivanp-Documents-OrchestrA-Strategy-orchestr-a-agents/aced03cd-52c6-4397-a944-9cb0976f21c3/scratchpad/corp-skill/corporate-strategy/.\" \"/c/Users/ivanp/.claude/skills/corporate-strategy/\")",
-      "Read(//c/Users/ivanp/.claude/skills/**)"
+      "Read(//c/Users/ivanp/.claude/skills/**)",
+      "Bash(yt-dlp --get-title --get-description \"https://youtu.be/J1NzoP4s4mo\" \"https://youtu.be/jJXjNU7d6PI\" \"https://youtu.be/-tqsUkdUCBM\" \"https://youtu.be/wP3ycv3QcI8\")",
+      "Bash(python -c \"import pymupdf; print\\('pymupdf ok'\\)\")",
+      "Bash(python -c \"import fitz; print\\('fitz ok'\\)\")",
+      "Bash(python -c \"import pdfplumber; print\\('pdfplumber ok'\\)\")",
+      "Bash(yt-dlp --print \"%\\(title\\)s\" \"https://youtu.be/J1NzoP4s4mo\" \"https://youtu.be/jJXjNU7d6PI\" \"https://youtu.be/-tqsUkdUCBM\" \"https://youtu.be/wP3ycv3QcI8\")",
+      "Bash(pip install *)",
+      "PowerShell(yt-dlp --print \"%\\(title\\)s\" \"https://youtu.be/J1NzoP4s4mo\" \"https://youtu.be/jJXjNU7d6PI\" \"https://youtu.be/-tqsUkdUCBM\" \"https://youtu.be/wP3ycv3QcI8\" 2>&1)",
+      "PowerShell(python -c \"import pymupdf; print\\('pymupdf ok'\\)\" 2>&1)",
+      "PowerShell(python -m yt_dlp --print \"%\\(title\\)s\" \"https://youtu.be/J1NzoP4s4mo\" \"https://youtu.be/jJXjNU7d6PI\" \"https://youtu.be/-tqsUkdUCBM\" \"https://youtu.be/wP3ycv3QcI8\" 2>&1)",
+      "PowerShell($env:PYTHONIOENCODING = \"utf-8\"; cd \"C:\\\\Users\\\\ivanp\\\\Documents\\\\OrchestrA-Strategy\\\\orchestr-a-agents\"; python tools/pdf-to-knowledge/extract_and_ingest_corp_pdfs.py 2>&1)",
+      "PowerShell($env:PYTHONIOENCODING = \"utf-8\"; cd \"C:\\\\Users\\\\ivanp\\\\Documents\\\\OrchestrA-Strategy\\\\orchestr-a-agents\"; python tools/video-to-knowledge/run_corp_strategy_videos.py 2>&1)",
+      "PowerShell(Get-Content \"C:\\\\Users\\\\ivanp\\\\Documents\\\\OrchestrA-Strategy\\\\orchestr-a-agents\\\\.dev.vars\" | ForEach-Object { if \\($_ -match '^\\([A-Z_]+\\)='\\) { $matches[1] } })",
+      "PowerShell(Get-Content \"C:\\\\Users\\\\ivanp\\\\Documents\\\\OrchestrA-Strategy\\\\orchestr-a-agents\\\\.dev.vars\" | Where-Object { $_ -match \"^\\(GROQ|OPENAI|ANTHROPIC\\)\" } | ForEach-Object { $_.Split\\(\"=\"\\)[0] })",
+      "PowerShell(@\\(\"GROQ_API_KEY\",\"OPENAI_API_KEY\",\"ANTHROPIC_API_KEY\"\\) | ForEach-Object { $val = [System.Environment]::GetEnvironmentVariable\\($_, \"User\"\\); if \\($val\\) { \"$_=SET \\(len $\\($val.Length\\)\\)\" } else { \"$_=not set\" } })",
+      "PowerShell(Get-Content \"C:\\\\Users\\\\ivanp\\\\Documents\\\\OrchestrA-Strategy\\\\orchestr-a-agents\\\\.dev.vars\" | Where-Object { $_ -match \"^ANTHROPIC\" })",
+      "PowerShell(python -c \"import anthropic; print\\('anthropic', anthropic.__version__\\)\" 2>&1)",
+      "PowerShell($env:PYTHONIOENCODING = \"utf-8\"; cd \"C:\\\\Users\\\\ivanp\\\\Documents\\\\OrchestrA-Strategy\\\\orchestr-a-agents\"; python tools/video-to-knowledge/ingest_corp_videos.py 2>&1)",
+      "PowerShell($env:PYTHONIOENCODING = \"utf-8\"; $env:PYTHONUTF8 = \"1\"; cd \"C:\\\\Users\\\\ivanp\\\\Documents\\\\OrchestrA-Strategy\\\\orchestr-a-agents\"; python tools/video-to-knowledge/ingest_corp_videos.py 2>&1)",
+      "PowerShell($env:PYTHONUTF8 = \"1\"; cd \"C:\\\\Users\\\\ivanp\\\\Documents\\\\OrchestrA-Strategy\\\\orchestr-a-agents\"; python tools/video-to-knowledge/ingest_corp_videos.py 2>&1)"
     ],
     "additionalDirectories": [
       "C:\\Users\\ivanp\\.claude"

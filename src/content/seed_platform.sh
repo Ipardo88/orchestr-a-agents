@@ -50,7 +50,7 @@ echo ""
 # ============================================================
 PLATFORM_MAP_CONTENT=$(jq -Rs . < "$SCRIPT_DIR/shared/orchestra-platform-map.md")
 
-for AGENT_ID in bos strategy-foundation business-model financial-intelligence; do
+for AGENT_ID in bos strategy-foundation business-strategy financial-intelligence; do
   echo "[0/?] Ingesting orchestra-platform-map.md (agent: $AGENT_ID)..."
   curl -sf -X POST "$WORKER_URL/admin/ingest" \
     -H "Content-Type: application/json" \
@@ -133,9 +133,9 @@ echo ""
 
 # ============================================================
 # 4. Business Strategy Platform Guide
-# Agent: business-strategy (FUTURE — seeds now, agent TBD)
+# Agent: business-strategy (ACTIVE)
 # ============================================================
-echo "[4/4] Ingesting orchestra-business-strategy-platform.md (agent: business-strategy — future)..."
+echo "[4/4] Ingesting orchestra-business-strategy-platform.md (agent: business-strategy)..."
 CONTENT=$(jq -Rs . < "$SCRIPT_DIR/business-model/orchestra-business-strategy-platform.md")
 
 curl -sf -X POST "$WORKER_URL/admin/ingest" \
